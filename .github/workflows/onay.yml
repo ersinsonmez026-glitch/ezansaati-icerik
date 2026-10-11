@@ -1,0 +1,29 @@
+name: Videoları onayla
+
+# Taslaklardan seçilenleri (ör. 1,3,5) uygulamaya açar: videolar/ klasörü ve videolar.json güncellenir.
+on:
+  workflow_dispatch:
+    inputs:
+      secilen:
+        description: 'Onaylanan taslak numaraları (ör. 1,3,5)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  onay:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p taslak && gh release download taslak -D taslak
+          python3 arac/onay.py "${{ inputs.secilen }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add videolar videolar.json
+          git commit -m "Onaylanan videolar: ${{ inputs.secilen }}"
+          git push
+          gh release delete taslak --yes --cleanup-tag
