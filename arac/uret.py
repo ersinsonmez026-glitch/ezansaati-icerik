@@ -6,11 +6,14 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 W, H, SURE = 720, 1280, 15
 KOK = os.path.dirname(os.path.abspath(__file__))
-ARAMALAR = ['kaaba', 'mecca', 'masjid al haram', 'medina mosque', 'mosque interior', 'mosque dome',
-            'mosque chandelier', 'islamic calligraphy', 'arabic calligraphy', 'allah calligraphy', 'quran', 'mosque']
+# Öncelik sırası: Kâbe ve Mescid-i Haram, cami içleri, hat (Allah, Muhammed), Kur'an; en son genel cami.
+ARAMALAR = ['kaaba', 'mecca', 'masjid al haram', 'mosque interior', 'mosque dome inside', 'mosque chandelier',
+            'islamic calligraphy', 'arabic calligraphy', 'allah', 'quran', 'medina mosque', 'mosque']
 # Yakın çekim insan yüzü olan videolar alınmaz (etiketlere göre).
 YASAK = {'woman', 'women', 'girl', 'man', 'men', 'boy', 'child', 'children', 'kid', 'portrait', 'face', 'model',
-         'beauty', 'person', 'people', 'family', 'muslim woman', 'hijab', 'selfie', 'smile', 'couple', 'dance', 'music'}
+         'beauty', 'person', 'people', 'family', 'muslim woman', 'hijab', 'selfie', 'smile', 'couple', 'dance', 'music',
+         'mother', 'baby', 'son', 'daughter', 'muslim girl', 'niqab', 'burqa', 'student', 'kids', 'lady', 'female', 'male',
+         'city', 'cityscape', 'skyline', 'traffic', 'street'}
 
 UA = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36'}
 
@@ -27,18 +30,15 @@ def adaylar(anahtar, kullanilan):
     for q in ARAMALAR:
         u = 'https://pixabay.com/api/videos/?' + urllib.parse.urlencode(
             {'key': anahtar, 'q': q, 'safesearch': 'true', 'per_page': 50, 'video_type': 'film'})
-        gorulen = set()
         for v in json_al(u).get('hits', []):
-            if v['id'] in gorulen:
-                continue
-            gorulen.add(v['id'])
             etiket = {t.strip().lower() for t in v.get('tags', '').split(',')}
             if v['id'] in kullanilan or v['duration'] < 8 or etiket & YASAK:
                 continue
             boy = v['videos'].get('large') or v['videos'].get('medium')
             if not boy or not boy.get('url'):
                 continue
-            yield {'id': v['id'], 'url': boy['url'], 'dikey': boy['height'] > boy['width'],
+            kullanilan.add(v['id'])   # aynı video iki aramada çıkarsa bir kez alınır
+            yield {'sira': ARAMALAR.index(q), 'id': v['id'], 'url': boy['url'], 'dikey': boy['height'] > boy['width'],
                    'sayfa': v['pageURL'], 'arama': q, 'etiket': v.get('tags', '')}
 
 KELIME_SN = 0.38   # okuma hızı: kelime başına
@@ -118,7 +118,14 @@ if __name__ == '__main__':
     random.shuffle(metinler)
     # Önce dikey videolar, aramalar karışık
     havuz = list(adaylar(anahtar, kullanilan))
-    random.shuffle(havuz); havuz.sort(key=lambda v: not v['dikey'])
+    random.shuffle(havuz)
+    # Önce öncelikli aramalardan; her aramadan en çok 2 video (çeşitlilik), dikeyler önde
+    havuz.sort(key=lambda v: (v['sira'], not v['dikey']))
+    say, secim = {}, []
+    for v in havuz:
+        if say.get(v['arama'], 0) < 2:
+            secim.append(v); say[v['arama']] = say.get(v['arama'], 0) + 1
+    havuz = secim + [v for v in havuz if v not in secim]
     os.makedirs('taslak', exist_ok=True)
     liste = []
     n = 0
