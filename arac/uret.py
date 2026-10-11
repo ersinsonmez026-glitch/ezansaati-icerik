@@ -1,15 +1,23 @@
 """Taslak mesaj videoları üretir: Pixabay'den sakin dini videolar bulur, üstüne kaynaklı ayet/hadis ve logo
 ekler (sessiz, 720x1280, 15 sn). Çıktı: taslak/NN.mp4, taslak/NN.jpg ve taslak/liste.json.
 Uygulamaya girmez; yalnız onaylananlar onay.py ile videolar/ klasörüne ve videolar.json'a eklenir."""
-import json, os, random, subprocess, sys, urllib.parse, urllib.request
+import json, os, random, subprocess, sys, urllib.error, urllib.parse, urllib.request
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 W, H, SURE = 720, 1280, 15
 KOK = os.path.dirname(os.path.abspath(__file__))
 ARAMALAR = ['kaaba', 'mecca', 'medina', 'mosque', 'minaret', 'quran', 'islamic', 'prayer beads', 'mosque sunset']
 
+UA = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36'}
+
+def ac(url):
+    return urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=120)
+
 def json_al(url):
-    return json.load(urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'EzanSaati/1.0'}), timeout=60))
+    try:
+        return json.load(ac(url))
+    except urllib.error.HTTPError as e:
+        raise SystemExit(f'Pixabay arama hatası {e.code} (anahtar doğru mu?)')
 
 def adaylar(anahtar, kullanilan):
     for q in ARAMALAR:
@@ -78,8 +86,15 @@ if __name__ == '__main__':
     random.shuffle(havuz); havuz.sort(key=lambda v: not v['dikey'])
     os.makedirs('taslak', exist_ok=True)
     liste = []
-    for n, (v, m) in enumerate(zip(havuz[:adet], metinler), 1):
-        urllib.request.urlretrieve(v['url'], '/tmp/kaynak.mp4')
+    n = 0
+    for v, m in zip(havuz, metinler):
+        if n >= adet:
+            break
+        n += 1
+        try:
+            open('/tmp/kaynak.mp4', 'wb').write(ac(v['url']).read())
+        except urllib.error.HTTPError as e:
+            print('indirilemedi', v['sayfa'], e.code); n -= 1; continue
         ad = f'taslak/{n:02d}'
         katman(m['metin'], m['kaynak'], ad)
         liste.append({'no': n, 'pixabay': v['id'], 'sayfa': v['sayfa'], 'arama': v['arama'], 'dikey': v['dikey'], **m})
