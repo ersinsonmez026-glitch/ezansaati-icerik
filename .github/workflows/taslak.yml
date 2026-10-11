@@ -1,7 +1,7 @@
 name: Taslak videolar
 
-# Pixabay'den video bulup ayet/hadis ve logo ekler; taslaklar "taslak" sürüm sayfasında izlenir.
-# Uygulamaya girmez. Onay için "Videoları onayla" iş akışı çalıştırılır.
+# Pixabay'den video bulup ayet/hadis ve logo ekler. Taslaklar "taslak" dalına konur ve tarayıcıda
+# jsDelivr bağlantısıyla izlenir; uygulamaya girmez. Onay için "Videoları onayla" iş akışı çalıştırılır.
 on:
   workflow_dispatch:
     inputs:
@@ -21,10 +21,16 @@ jobs:
       - run: python3 arac/uret.py "${{ inputs.adet }}"
         env:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
-      - env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release delete taslak --yes --cleanup-tag 2>/dev/null || true
-          NOT=$(python3 -c "import json;print('\n'.join(f\"{t['no']}. {t['kaynak']} — {t['metin'][:60]}… ({t['sayfa']})\" for t in json.load(open('taslak/liste.json'))))")
-          gh release create taslak taslak/*.mp4 taslak/*.jpg taslak/liste.json --target "$GITHUB_SHA" --prerelease \
-            --title "Taslak videolar (onay bekliyor)" --notes "$NOT"
+      - run: |
+          cp -r taslak /tmp/taslak
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan taslak-dal
+          git rm -rfq .
+          cp -r /tmp/taslak taslak
+          git add taslak
+          git commit -qm "Taslak videolar"
+          git push -f origin taslak-dal:taslak
+          SHA=$(git rev-parse HEAD)
+          echo "## Taslaklar (izlemek için dokunun)" >> $GITHUB_STEP_SUMMARY
+          for f in taslak/*.mp4; do echo "- https://cdn.jsdelivr.net/gh/${GITHUB_REPOSITORY}@${SHA}/$f" >> $GITHUB_STEP_SUMMARY; done
