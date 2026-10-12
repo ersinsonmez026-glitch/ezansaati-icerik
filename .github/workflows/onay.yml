@@ -19,7 +19,8 @@ jobs:
         with:
           fetch-depth: 0
       - run: |
-          git checkout origin/taslak -- taslak
+          git fetch -q origin taslak
+          git checkout FETCH_HEAD -- taslak
           git reset -q taslak
           python3 arac/onay.py "${{ inputs.secilen }}"
           rm -rf taslak
