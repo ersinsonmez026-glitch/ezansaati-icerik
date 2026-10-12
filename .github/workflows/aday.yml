@@ -1,0 +1,39 @@
+name: Video adayları
+
+# Arama kelimelerine göre Pexels ve Pixabay'den aday videolar bulur, numaralı vitrin görseli hazırlar ("aday" dalı).
+# Beğenilen numaralar "Taslak videolar" iş akışına (kaynak: aday) verilir. Uygulamaya hiçbir şey girmez.
+on:
+  workflow_dispatch:
+    inputs:
+      aramalar:
+        description: 'Arama kelimeleri (virgülle)'
+        default: 'islamic calligraphy, quran, ramadan lantern'
+      adet:
+        description: 'Her arama ve kaynak için aday sayısı'
+        default: '8'
+  push:
+    branches: [main]
+    paths: [.github/workflows/aday.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  bul:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q pillow
+      - run: python3 arac/aday.py "${{ inputs.aramalar || 'islamic calligraphy, quran, ramadan lantern' }}" "${{ inputs.adet || '8' }}"
+        env:
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+      - run: |
+          cp -r aday /tmp/aday
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan aday-dal
+          git rm -rfq .
+          rm -rf aday && cp -r /tmp/aday aday
+          git add aday
+          git commit -qm "Video adayları"
+          git push -f origin aday-dal:aday

@@ -232,6 +232,11 @@ if __name__ == '__main__':
     # Önce dikey videolar, aramalar karışık
     kaynak = sys.argv[2] if len(sys.argv) > 2 else 'hepsi'
     havuz = []
+    if kaynak == 'aday':   # aday.yml vitrininden seçilen numaralar
+        sec = {int(x) for x in os.environ.get('BAGLANTILAR', '').replace(',', ' ').split()}
+        for a in json.load(open('aday/liste.json')):
+            if a['no'] in sec and a['id'] not in kullanilan:
+                havuz.append({'id': a['id'], 'url': a['url'], 'sayfa': a['sayfa'], 'arama': 'pexels', 'dikey': True, 'sira': -2})
     if kaynak == 'pexels':
         havuz += list(pexels_adaylar(os.environ.get('BAGLANTILAR', '').split(), kullanilan))
     if kaynak in ('commons', 'hepsi'):
@@ -239,7 +244,7 @@ if __name__ == '__main__':
     if kaynak in ('pixabay', 'hepsi'):
         havuz += list(adaylar(anahtar, kullanilan))
     print('aday sayısı', len(havuz))
-    if kaynak != 'pexels':
+    if kaynak not in ('pexels', 'aday'):
         random.shuffle(havuz)
     # Önce öncelikli aramalardan; her aramadan en çok 2 video (çeşitlilik), dikeyler önde
     havuz.sort(key=lambda v: (v['sira'], not v['dikey']))  # Commons (sira -1) önce

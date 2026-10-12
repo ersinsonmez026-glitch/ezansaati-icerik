@@ -24,7 +24,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: (which ffmpeg || (sudo apt-get update -q && sudo apt-get install -yq ffmpeg)) && pip install -q pillow
-      - run: python3 arac/uret.py "${{ inputs.adet }}" "${{ inputs.kaynak }}"
+      - run: |
+          if [ "${{ inputs.kaynak }}" = aday ]; then git fetch -q origin aday && git checkout FETCH_HEAD -- aday && git reset -q -- aday; fi
+          python3 arac/uret.py "${{ inputs.adet }}" "${{ inputs.kaynak }}"
         env:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           BAGLANTILAR: ${{ inputs.baglantilar }}
