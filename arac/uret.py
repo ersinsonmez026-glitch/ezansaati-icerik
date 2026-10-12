@@ -88,7 +88,7 @@ def commons_adaylar(kullanilan):
                    'arama': 'commons:' + q, 'etiket': sayfa['title'],
                    'kredi': f"Görüntü: {sahip} · {em.get('LicenseShortName', {}).get('value', '')} · Wikimedia Commons"}
 
-def katman(metin, kaynak, cikti, kredi=''):
+def katman(metin, kaynak, cikti, kredi='', arapca=''):
     """Zemin karartması ve logo sabit; yazı kelime kelime belirir (PNG dizisi, saniyede 10 kare)."""
     ov = Image.new('RGBA', (W, H), (0, 0, 0, 0))
     g = Image.new('L', (1, H))
@@ -117,6 +117,20 @@ def katman(metin, kaynak, cikti, kredi=''):
         if len(satir) * lh < 440: break
     fs = ImageFont.truetype(f'{KOK}/yazi/Lora-Bold.ttf', 27)
     y0 = H - 250 - len(satir) * lh - 40
+    # Arapça (kısa ayetlerde): Türkçe mealin üstünde, en başta belirir
+    ar_satir, fa = [], None
+    if arapca:
+        fa = ImageFont.truetype(f'{KOK}/yazi/Amiri-Regular.ttf', 40)
+        cur = []
+        for w in arapca.split():
+            if d.textlength(' '.join(cur + [w]), font=fa, direction='rtl') > W - 100 and cur:
+                ar_satir.append(' '.join(cur)); cur = [w]
+            else:
+                cur.append(w)
+        ar_satir.append(' '.join(cur))
+        y0 += 0
+        ar_lh = 64
+        y_ar = y0 - len(ar_satir) * ar_lh - 24
     # Her kelimenin yeri (satır ortalanmış)
     yerler = []
     for i, ks in enumerate(satir):
@@ -125,7 +139,8 @@ def katman(metin, kaynak, cikti, kredi=''):
             yerler.append((x, y0 + i * lh, k))
             x += d.textlength(k + ' ', font=f)
     kx = (W - d.textlength(kaynak, font=fs)) / 2; ky = y0 + len(satir) * lh + 16
-    son = BASLA + len(yerler) * KELIME_SN
+    ar_sure = 2.2 if ar_satir else 0      # Arapça önce belirir
+    son = BASLA + ar_sure + len(yerler) * KELIME_SN
     sure = max(SURE, son + 4.5)
     os.makedirs('/tmp/yz', exist_ok=True)
     for fn in os.listdir('/tmp/yz'): os.remove('/tmp/yz/' + fn)
@@ -133,8 +148,14 @@ def katman(metin, kaynak, cikti, kredi=''):
     for n in range(kare_say):
         t = n / FPS_YAZI
         tl = Image.new('RGBA', (W, H), (0, 0, 0, 0)); dd = ImageDraw.Draw(tl)
+        if ar_satir:
+            a = (t - BASLA) / 1.2
+            if a > 0:
+                for j, sa in enumerate(ar_satir):
+                    dd.text(((W - dd.textlength(sa, font=fa, direction='rtl')) / 2, y_ar + j * ar_lh), sa, font=fa,
+                            fill=(240, 214, 150, int(255 * min(1, a))), direction='rtl')
         for i, (x, y, k) in enumerate(yerler):
-            a = (t - (BASLA + i * KELIME_SN)) / 0.35      # her kelime 0,35 sn'de belirir
+            a = (t - (BASLA + ar_sure + i * KELIME_SN)) / 0.35      # her kelime 0,35 sn'de belirir
             if a > 0:
                 dd.text((x, y), k, font=f, fill=(255, 250, 235, int(255 * min(1, a))))
         a = (t - son - 0.2) / 0.6
@@ -197,7 +218,7 @@ if __name__ == '__main__':
             n -= 1; continue
         ad = f'taslak/{n:02d}'
         try:
-            katman(m['metin'], m['kaynak'], ad, v.get('kredi', ''))
+            katman(m['metin'], m['kaynak'], ad, v.get('kredi', ''), m.get('arapca', ''))
         except subprocess.CalledProcessError as e:
             print('işlenemedi', v['sayfa'], e); n -= 1; continue
         liste.append({'no': n, 'pixabay': v['id'], 'sayfa': v['sayfa'], 'arama': v['arama'], 'dikey': v['dikey'],
