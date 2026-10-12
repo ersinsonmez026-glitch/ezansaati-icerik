@@ -171,7 +171,7 @@ def onay(numaralar):
 if __name__ == '__main__':
     mod = sys.argv[1]
     if mod == 'aday':
-        aday([a.strip() for a in sys.argv[2].split(',') if a.strip()], int(sys.argv[3]) if len(sys.argv) > 3 else 8)
+        aday([a.strip() for a in sys.argv[2].split(',') if a.strip()], int(sys.argv[3]) if len(sys.argv) > 3 and sys.argv[3] else 7)
     elif mod == 'taslak':
         taslak(sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else '')
     elif mod == 'onay':
