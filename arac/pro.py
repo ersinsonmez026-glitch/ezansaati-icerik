@@ -7,6 +7,8 @@ import json, os, random, subprocess, sys, urllib.parse, urllib.request
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 KOK = os.path.dirname(os.path.abspath(__file__))
+# Bağlamından koparılınca uygun düşmeyen metinler (savaş, yöneticiler, cenaze, kişiye hitap vb.) kullanılmaz
+HARIC = set(json.load(open(os.path.join(KOK, 'haric.json'))))
 sys.path.insert(0, KOK)
 from uret import UA, W, H, parlaklik
 
@@ -165,7 +167,7 @@ def kisa_metin(v, metinler, kullanilan):
     """Videonun metni uzunsa kullanılmamış kısa bir metinle değiştirilir (aynı tür önce)."""
     if len(v['metin']) <= MAKS_METIN:
         return next((m for m in metinler if m['kaynak'] == v['kaynak']), {'metin': v['metin'], 'kaynak': v['kaynak'], 'tur': v['tur'], 'arapca': ''})
-    aday = [m for m in metinler if len(m['metin']) <= MAKS_METIN and m['kaynak'] not in kullanilan]
+    aday = [m for m in metinler if len(m['metin']) <= MAKS_METIN and m['kaynak'] not in kullanilan and m['kaynak'] not in HARIC]
     aday.sort(key=lambda m: m['tur'] != v['tur'])
     return aday[0]
 

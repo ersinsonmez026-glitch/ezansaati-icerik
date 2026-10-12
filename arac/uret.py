@@ -6,6 +6,8 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageStat
 
 W, H, SURE = 720, 1280, 15
 KOK = os.path.dirname(os.path.abspath(__file__))
+# Bağlamından koparılınca uygun düşmeyen metinler (savaş, yöneticiler, cenaze, kişiye hitap vb.) kullanılmaz
+HARIC = set(json.load(open(os.path.join(KOK, 'haric.json'))))
 # Öncelik sırası: Kâbe ve Mescid-i Haram, cami içleri, hat (Allah, Muhammed), Kur'an; en son genel cami.
 ARAMALAR = ['kaaba', 'mecca', 'masjid al haram', 'mosque interior', 'mosque dome inside', 'mosque chandelier',
             'islamic calligraphy', 'arabic calligraphy', 'allah', 'quran', 'medina mosque', 'mosque']
@@ -233,7 +235,7 @@ if __name__ == '__main__':
     import re
     import pro   # profesyonel düzen (kısa metin, harf harf yazı, sakin yer)
     metinler = [m for m in json.load(open(f'{KOK}/metinler.json'))
-                if m['kaynak'] not in kullanilan_metin and len(m['metin']) <= pro.MAKS_METIN]
+                if m['kaynak'] not in kullanilan_metin and m['kaynak'] not in HARIC and len(m['metin']) <= pro.MAKS_METIN]
     # Hz. Peygamber'le ilgili metinler gül/hat videolarına (PEYGAMBER = aday numaraları)
     PEY = re.compile(r'Peygamber|Resûl|Muhammed|Nebi', re.I)
     pey_no = {int(x) for x in os.environ.get('PEYGAMBER', '').replace(',', ' ').split()}

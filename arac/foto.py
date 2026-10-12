@@ -8,6 +8,8 @@ import io, json, os, random, re, shutil, sys, time, urllib.parse, urllib.request
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont, ImageStat
 
 KOK = os.path.dirname(os.path.abspath(__file__))
+# Bağlamından koparılınca uygun düşmeyen metinler (savaş, yöneticiler, cenaze, kişiye hitap vb.) kullanılmaz
+HARIC = set(json.load(open(os.path.join(KOK, 'haric.json'))))
 sys.path.insert(0, KOK)
 from uret import UA, YASAK
 from pro import sar, MAKS_METIN, KREM, ALTIN, KOYU, ARAPCA, SELAM_H
@@ -132,7 +134,7 @@ def taslak(numaralar, pey_no):
     pey_no = {int(x) for x in pey_no.replace(',', ' ').split()}
     onayli = json.load(open('fotolar.json')) if os.path.exists('fotolar.json') else []
     kullanilan = {f['kaynak'] for f in onayli}
-    metinler = [m for m in json.load(open(f'{KOK}/metinler.json')) if m['kaynak'] not in kullanilan and len(m['metin']) <= MAKS_KART]
+    metinler = [m for m in json.load(open(f'{KOK}/metinler.json')) if m['kaynak'] not in kullanilan and m['kaynak'] not in HARIC and len(m['metin']) <= MAKS_KART]
     random.seed(int(time.time())); random.shuffle(metinler)
     pey = [m for m in metinler if PEY.search(m['metin']) and m['kaynak'] not in PEY_HARIC]
     diger = [m for m in metinler if m not in pey]
