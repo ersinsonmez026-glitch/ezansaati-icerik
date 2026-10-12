@@ -34,7 +34,7 @@ jobs:
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
           git checkout --orphan taslak-dal
           git rm -rfq .
-          cp -r /tmp/taslak taslak
+          rm -rf taslak && cp -r /tmp/taslak taslak
           git add taslak
           git commit -qm "Taslak videolar"
           git push -f origin taslak-dal:taslak
