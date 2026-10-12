@@ -88,6 +88,17 @@ def commons_adaylar(kullanilan):
                    'arama': 'commons:' + q, 'etiket': sayfa['title'],
                    'kredi': f"Görüntü: {sahip} · {em.get('LicenseShortName', {}).get('value', '')} · Wikimedia Commons"}
 
+def pexels_adaylar(baglantilar, kullanilan):
+    """Kullanıcının seçtiği Pexels videoları (sayfa ya da indirme adresi). Pexels lisansı kaynak göstermeyi zorunlu tutmaz."""
+    import re
+    for b in baglantilar:
+        m = re.search(r'pexels\.com/.*?(\d{5,})/?$', b.strip())
+        if not m or f'pexels-{m.group(1)}' in kullanilan:
+            continue
+        i = m.group(1)
+        yield {'id': f'pexels-{i}', 'url': f'https://www.pexels.com/download/video/{i}/',
+               'sayfa': f'https://www.pexels.com/video/{i}/', 'arama': 'pexels', 'dikey': True, 'sira': -2}
+
 def katman(metin, kaynak, cikti, kredi='', arapca=''):
     """Zemin karartması ve logo sabit; yazı kelime kelime belirir (PNG dizisi, saniyede 10 kare)."""
     ov = Image.new('RGBA', (W, H), (0, 0, 0, 0))
@@ -186,17 +197,20 @@ if __name__ == '__main__':
     # Önce dikey videolar, aramalar karışık
     kaynak = sys.argv[2] if len(sys.argv) > 2 else 'hepsi'
     havuz = []
+    if kaynak == 'pexels':
+        havuz += list(pexels_adaylar(os.environ.get('BAGLANTILAR', '').split(), kullanilan))
     if kaynak in ('commons', 'hepsi'):
         havuz += list(commons_adaylar(kullanilan))
     if kaynak in ('pixabay', 'hepsi'):
         havuz += list(adaylar(anahtar, kullanilan))
     print('aday sayısı', len(havuz))
-    random.shuffle(havuz)
+    if kaynak != 'pexels':
+        random.shuffle(havuz)
     # Önce öncelikli aramalardan; her aramadan en çok 2 video (çeşitlilik), dikeyler önde
     havuz.sort(key=lambda v: (v['sira'], not v['dikey']))  # Commons (sira -1) önce
     say, secim = {}, []
     for v in havuz:
-        if say.get(v['arama'], 0) < 2:
+        if v['arama'] == 'pexels' or say.get(v['arama'], 0) < 2:
             secim.append(v); say[v['arama']] = say.get(v['arama'], 0) + 1
     havuz = secim + [v for v in havuz if v not in secim]
     os.makedirs('taslak', exist_ok=True)

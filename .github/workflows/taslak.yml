@@ -9,8 +9,11 @@ on:
         description: 'Kaç taslak video'
         default: '6'
       kaynak:
-        description: 'Kaynak: hepsi, commons ya da pixabay'
+        description: 'Kaynak: hepsi, commons, pixabay ya da pexels'
         default: 'hepsi'
+      baglantilar:
+        description: 'Pexels video bağlantıları (boşlukla ayrılmış; kaynak = pexels)'
+        default: ''
 
 permissions:
   contents: write
@@ -24,6 +27,7 @@ jobs:
       - run: python3 arac/uret.py "${{ inputs.adet }}" "${{ inputs.kaynak }}"
         env:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          BAGLANTILAR: ${{ inputs.baglantilar }}
       - run: |
           cp -r taslak /tmp/taslak
           git config user.name "github-actions[bot]"
