@@ -2,7 +2,7 @@
 ekler (sessiz, 720x1280, 15 sn). Çıktı: taslak/NN.mp4, taslak/NN.jpg ve taslak/liste.json.
 Uygulamaya girmez; yalnız onaylananlar onay.py ile videolar/ klasörüne ve videolar.json'a eklenir."""
 import json, os, random, subprocess, sys, urllib.error, urllib.parse, urllib.request
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageStat
 
 W, H, SURE = 720, 1280, 15
 KOK = os.path.dirname(os.path.abspath(__file__))
@@ -99,22 +99,19 @@ def pexels_adaylar(baglantilar, kullanilan):
         yield {'id': f'pexels-{i}', 'url': f'https://www.pexels.com/download/video/{i}/',
                'sayfa': f'https://www.pexels.com/video/{i}/', 'arama': 'pexels', 'dikey': True, 'sira': -2}
 
+def parlaklik(ust, alt):
+    """Kaynak videonun (kırpılmış hâli) yazı bölgesindeki ortalama parlaklığı (0-255), birkaç kareden."""
+    for fn in os.listdir('/tmp'):
+        if fn.startswith('pk_'): os.remove('/tmp/' + fn)
+    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', '/tmp/kaynak.mp4', '-vf',
+                    f'scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps=1/2', '-frames:v', '6',
+                    '/tmp/pk_%d.png'], check=True)
+    d = [ImageStat.Stat(Image.open('/tmp/' + fn).convert('L').crop((60, max(0, ust), W - 60, min(H, alt)))).mean[0]
+         for fn in os.listdir('/tmp') if fn.startswith('pk_')]
+    return max(d) if d else 120
+
 def katman(metin, kaynak, cikti, kredi='', arapca=''):
     """Zemin karartması ve logo sabit; yazı kelime kelime belirir (PNG dizisi, saniyede 10 kare)."""
-    ov = Image.new('RGBA', (W, H), (0, 0, 0, 0))
-    g = Image.new('L', (1, H))
-    for y in range(H):
-        t = max(0, (y - H * 0.35) / (H * 0.65))
-        g.putpixel((0, y), int(min(1, t * 1.3) * 200))
-    kar = Image.new('RGBA', (W, H), (0, 0, 0, 255)); kar.putalpha(g.resize((W, H)))
-    ov.alpha_composite(kar)
-    lg = Image.open(f'{KOK}/logo.webp').convert('RGBA'); lg.thumbnail((120, 120))
-    ov.alpha_composite(lg, (W - lg.width - 36, H - 46 - lg.height))   # logo sağ altta
-    if kredi:   # CC BY lisansı: görüntü sahibinin adı
-        ImageDraw.Draw(ov).text((24, H - 34), kredi, font=ImageFont.truetype(f'{KOK}/yazi/Lora-SemiBold.ttf', 15),
-                                fill=(255, 255, 255, 150))
-    ov.save('/tmp/kar.png')
-
     d = ImageDraw.Draw(Image.new('RGBA', (W, H)))
     metin = '“' + metin.strip('“”"') + '”'
     for boyut in (42, 38, 34, 30, 27):
@@ -150,6 +147,27 @@ def katman(metin, kaynak, cikti, kredi='', arapca=''):
             yerler.append((x, y0 + i * lh, k))
             x += d.textlength(k + ' ', font=f)
     kx = (W - d.textlength(kaynak, font=fs)) / 2; ky = y0 + len(satir) * lh + 16
+    ov = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+    g = Image.new('L', (1, H))
+    for y in range(H):
+        t = max(0, (y - H * 0.35) / (H * 0.65))
+        g.putpixel((0, y), int(min(1, t * 1.3) * 200))
+    kar = Image.new('RGBA', (W, H), (0, 0, 0, 255)); kar.putalpha(g.resize((W, H)))
+    ov.alpha_composite(kar)
+    # Yazının arkasına kenarları silik koyu bant; koyuluğu o bölgedeki görüntünün parlaklığına göre (açık sahnede koyu)
+    ust = (y_ar if ar_satir else y0) - 40; alt = ky + 60
+    isik = parlaklik(ust, alt)
+    koyu = int(70 + 120 * min(1, max(0, (isik - 60) / 110)))
+    m = Image.new('L', (W, H), 0); ImageDraw.Draw(m).rounded_rectangle((20, ust, W - 20, alt), 40, fill=koyu)
+    bant = Image.new('RGBA', (W, H), (0, 0, 0, 255)); bant.putalpha(m.filter(ImageFilter.GaussianBlur(45)))
+    ov.alpha_composite(bant)
+    print('parlaklık', int(isik), 'bant', koyu)
+    lg = Image.open(f'{KOK}/logo.webp').convert('RGBA'); lg.thumbnail((120, 120))
+    ov.alpha_composite(lg, (W - lg.width - 36, H - 46 - lg.height))   # logo sağ altta
+    if kredi:   # CC BY lisansı: görüntü sahibinin adı
+        ImageDraw.Draw(ov).text((24, H - 34), kredi, font=ImageFont.truetype(f'{KOK}/yazi/Lora-SemiBold.ttf', 15),
+                                fill=(255, 255, 255, 150))
+    ov.save('/tmp/kar.png')
     ar_sure = 2.2 if ar_satir else 0      # Arapça önce belirir
     son = BASLA + ar_sure + len(yerler) * KELIME_SN
     sure = max(SURE, son + 4.5)
@@ -164,14 +182,17 @@ def katman(metin, kaynak, cikti, kredi='', arapca=''):
             if a > 0:
                 for j, sa in enumerate(ar_satir):
                     dd.text(((W - dd.textlength(sa, font=fa, direction='rtl')) / 2, y_ar + j * ar_lh), sa, font=fa,
-                            fill=(240, 214, 150, int(255 * min(1, a))), direction='rtl')
+                            fill=(240, 214, 150, int(255 * min(1, a))), direction='rtl',
+                            stroke_width=2, stroke_fill=(20, 15, 5, int(255 * min(1, a))))
         for i, (x, y, k) in enumerate(yerler):
             a = (t - (BASLA + ar_sure + i * KELIME_SN)) / 0.35      # her kelime 0,35 sn'de belirir
             if a > 0:
-                dd.text((x, y), k, font=f, fill=(255, 250, 235, int(255 * min(1, a))))
+                dd.text((x, y), k, font=f, fill=(255, 250, 235, int(255 * min(1, a))), stroke_width=2,
+                        stroke_fill=(20, 15, 5, int(255 * min(1, a))))
         a = (t - son - 0.2) / 0.6
         if a > 0:
-            dd.text((kx, ky), kaynak, font=fs, fill=(232, 200, 138, int(255 * min(1, a))))
+            dd.text((kx, ky), kaynak, font=fs, fill=(232, 200, 138, int(255 * min(1, a))), stroke_width=1,
+                    stroke_fill=(20, 15, 5, int(255 * min(1, a))))
         golge = Image.new('RGBA', (W, H), (0, 0, 0, 255))
         golge.putalpha(tl.split()[3].filter(ImageFilter.GaussianBlur(4)).point(lambda v: int(v * .85)))
         yazi = Image.new('RGBA', (W, H), (0, 0, 0, 0)); yazi.alpha_composite(golge, (2, 3)); yazi.alpha_composite(tl)
@@ -186,7 +207,21 @@ def katman(metin, kaynak, cikti, kredi='', arapca=''):
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-ss', f'{min(son + 1.5, sure - 1):.2f}', '-i', cikti + '.mp4',
         '-frames:v', '1', '-vf', 'scale=360:-2', '-q:v', '4', cikti + '.jpg'], check=True)
 
+def yenile():
+    """Onaylı videoları (videolar.json) güncel yazı düzeniyle aynı metin ve kaynakla yeniden üretir."""
+    ar = {m['kaynak']: m.get('arapca', '') for m in json.load(open(f'{KOK}/metinler.json'))}
+    for v in json.load(open('videolar.json')):
+        i = v['pixabay'].removeprefix('pexels-')
+        url = f'https://www.pexels.com/download/video/{i}/' if v['pixabay'].startswith('pexels-') else v.get('kaynak_url')
+        if not url:
+            print('atlandı', v['id']); continue
+        open('/tmp/kaynak.mp4', 'wb').write(urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=300).read())
+        katman(v['metin'], v['kaynak'], v['video'][:-4], v.get('kredi', ''), ar.get(v['kaynak'], ''))
+        print('yenilendi', v['id'])
+
 if __name__ == '__main__':
+    if len(sys.argv) > 1 and sys.argv[1] == 'yenile':
+        yenile(); sys.exit()
     adet = int(sys.argv[1]) if len(sys.argv) > 1 else 6
     anahtar = os.environ['PIXABAY_API_KEY']
     onayli = json.load(open('videolar.json'))
