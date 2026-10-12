@@ -21,7 +21,7 @@ jobs:
       - run: |
           git fetch -q origin taslak
           git checkout FETCH_HEAD -- taslak
-          git reset -q taslak
+          git reset -q -- taslak
           python3 arac/onay.py "${{ inputs.secilen }}"
           rm -rf taslak
           git config user.name "github-actions[bot]"
