@@ -15,6 +15,7 @@ MAKS_METIN = 110          # videoda yalnız kısa metinler (uzunlar kartlarda)
 RENK = ('eq=contrast=1.06:saturation=0.92:brightness=-0.015,'
         'colorbalance=rs=0.04:gs=0.01:bs=-0.04:rh=0.03:bh=-0.03,vignette=angle=PI/5')
 KREM, ALTIN, KOYU = (255, 250, 235), (236, 204, 140), (20, 15, 5)
+ARAPCA = (255, 238, 185)   # Arapça: açık altın, kalınlaştırılmış
 
 
 def indir(v):
@@ -43,17 +44,17 @@ def katman(metin, kaynak, cikti, arapca=''):
     d = ImageDraw.Draw(Image.new('RGBA', (W, H)))
     f = ImageFont.truetype(f'{KOK}/yazi/Lora-SemiBold.ttf', 44)
     fs = ImageFont.truetype(f'{KOK}/yazi/Lora-Bold.ttf', 26)
-    fa = ImageFont.truetype(f'{KOK}/yazi/Amiri-Regular.ttf', 42)
+    fa = ImageFont.truetype(f'{KOK}/yazi/Amiri-Regular.ttf', 48)
     tr = sar(d, '“' + metin.strip('“”"') + '”', f, W - 120)
     ar = sar(d, arapca, fa, W - 110, rtl=True) if arapca else []
     if len(ar) > 2: ar = []                      # uzun Arapça videoyu kalabalıklaştırır
-    LH, ALH = 62, 70
+    LH, ALH = 62, 80
     blok = len(ar) * ALH + (24 if ar else 0) + len(tr) * LH + 50
     y = int(H * 0.60 - blok / 2)
     yer = []                                     # (başlangıç sn, y, metin, font, renk, rtl)
     t = 1.0
     for s in ar:
-        yer.append((t, y, s, fa, ALTIN, True)); y += ALH
+        yer.append((t, y, s, fa, ARAPCA, True)); y += ALH
     if ar: y += 24; t += 1.6
     for s in tr:
         yer.append((t, y, s, f, KREM, False)); y += LH; t += 0.75
@@ -89,8 +90,13 @@ def katman(metin, kaynak, cikti, arapca=''):
             e = 1 - (1 - a) ** 3                 # yumuşak yavaşlama
             al = int(255 * e); kay = int(14 * (1 - e))
             x = (W - dd.textlength(s, font=font, direction='rtl' if rtl else None)) / 2
-            dd.text((x, yy + kay), s, font=font, fill=renk + (al,), direction='rtl' if rtl else None,
-                    stroke_width=1 if font is fs else 2, stroke_fill=KOYU + (al,))
+            yon = 'rtl' if rtl else None
+            if rtl:   # Amiri ince: koyu dış kontur, üstüne aynı renkle 1 px kalınlaştırma
+                dd.text((x, yy + kay), s, font=font, fill=KOYU + (al,), direction=yon, stroke_width=3, stroke_fill=KOYU + (al,))
+                dd.text((x, yy + kay), s, font=font, fill=renk + (al,), direction=yon, stroke_width=1, stroke_fill=renk + (al,))
+            else:
+                dd.text((x, yy + kay), s, font=font, fill=renk + (al,), direction=yon,
+                        stroke_width=1 if font is fs else 2, stroke_fill=KOYU + (al,))
         golge = Image.new('RGBA', (W, H), (0, 0, 0, 255))
         golge.putalpha(tl.split()[3].filter(ImageFilter.GaussianBlur(6)).point(lambda v: int(v * .8)))
         yazi = Image.new('RGBA', (W, H), (0, 0, 0, 0)); yazi.alpha_composite(golge, (0, 3)); yazi.alpha_composite(tl)
