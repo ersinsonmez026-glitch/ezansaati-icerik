@@ -40,6 +40,35 @@ def sar(d, metin, font, genislik, rtl=False):
     return satir + [' '.join(cur)]
 
 
+SELAM_H = 100                 # uygulamadaki selam yazısının yüksekliği (720x1280'de)
+SELAM_ALAN = 68 + SELAM_H - 50
+
+
+def bos_yer(yukseklik):
+    """Yazı ve selam bloğu için görüntünün en sakin (en az ayrıntılı) dikey yeri; üst sınır bloğun başı."""
+    for fn in os.listdir('/tmp'):
+        if fn.startswith('by_'): os.remove('/tmp/' + fn)
+    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', '/tmp/kaynak.mp4', '-vf',
+                    f'scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps=1/2', '-frames:v', '6',
+                    '/tmp/by_%d.png'], check=True)
+    satir = [0.0] * H
+    kareler = [fn for fn in os.listdir('/tmp') if fn.startswith('by_')]
+    for fn in kareler:
+        e = Image.open('/tmp/' + fn).convert('L').filter(ImageFilter.FIND_EDGES).resize((90, H))
+        px = e.load()
+        for yy in range(H):
+            satir[yy] += sum(px[x, yy] for x in range(90))
+    ust_sinir, alt_sinir = 150, H - 170 - yukseklik          # üstte boşluk, altta logo
+    en, en_y = None, int(H * 0.55 - yukseklik / 2)
+    toplam = [0.0]
+    for v in satir: toplam.append(toplam[-1] + v)
+    for yy in range(ust_sinir, max(ust_sinir, alt_sinir) + 1, 10):
+        yogun = (toplam[yy + yukseklik] - toplam[yy]) / yukseklik
+        yogun *= 1 + 0.35 * abs((yy + yukseklik / 2) / H - 0.58)   # ortaya yakın yerler hafif tercih edilir
+        if en is None or yogun < en: en, en_y = yogun, yy
+    return en_y
+
+
 def katman(metin, kaynak, cikti, arapca=''):
     d = ImageDraw.Draw(Image.new('RGBA', (W, H)))
     f = ImageFont.truetype(f'{KOK}/yazi/Lora-SemiBold.ttf', 44)
@@ -50,7 +79,7 @@ def katman(metin, kaynak, cikti, arapca=''):
     if len(ar) > 2: ar = []                      # uzun Arapça videoyu kalabalıklaştırır
     LH, ALH = 62, 80
     blok = len(ar) * ALH + (24 if ar else 0) + len(tr) * LH + 50
-    y = int(H * 0.60 - blok / 2)
+    y = bos_yer(blok + SELAM_ALAN)
     yer = []                                     # (başlangıç sn, y, metin, font, renk, rtl)
     t = 1.0
     for s in ar:
@@ -61,7 +90,8 @@ def katman(metin, kaynak, cikti, arapca=''):
     yer.append((t + 0.3, y + 14, kaynak, fs, ALTIN, False))
     son = t + 0.3 + 0.9
     sure = max(SURE, son + 4.0)
-    ust, alt = yer[0][1] - 40, y + 70
+    selam_y = y + 68                             # uygulama selam yazısını buraya çizer (ayetin hemen altı)
+    ust, alt = yer[0][1] - 40, selam_y + SELAM_H + 30   # bant selam yazısını da kapsar
 
     # Sabit katman: alt karartma, yazı bandı (parlaklığa göre), logo
     ov = Image.new('RGBA', (W, H), (0, 0, 0, 0))
@@ -114,6 +144,7 @@ def katman(metin, kaynak, cikti, arapca=''):
         '-movflags', '+faststart', cikti + '.mp4'], check=True)
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-ss', f'{son + 1:.2f}', '-i', cikti + '.mp4',
         '-frames:v', '1', '-vf', 'scale=360:-2', '-q:v', '4', cikti + '.jpg'], check=True)
+    return round(selam_y / H, 4)
 
 
 def kisa_metin(v, metinler, kullanilan):
@@ -138,15 +169,15 @@ if __name__ == '__main__':
         for n, i in enumerate(ids, 1):
             v = next(x for x in onayli if x['id'] == i)
             m = kisa_metin(v, metinler, kullanilan); kullanilan.add(m['kaynak'])
-            indir(v); katman(m['metin'], m['kaynak'], f'taslak/{n:02d}', m.get('arapca', ''))
-            liste.append({'no': n, 'id': i, **m}); print(n, i, m['kaynak'])
+            indir(v); sy = katman(m['metin'], m['kaynak'], f'taslak/{n:02d}', m.get('arapca', ''))
+            liste.append({'no': n, 'id': i, 'selam_y': sy, **m}); print(n, i, m['kaynak'], sy)
         json.dump(liste, open('taslak/liste.json', 'w'), ensure_ascii=False, indent=1)
     elif mod == 'hepsi':
         for v in onayli:
             m = kisa_metin(v, metinler, kullanilan); kullanilan.add(m['kaynak'])
             try:
-                indir(v); katman(m['metin'], m['kaynak'], v['video'][:-4], m.get('arapca', ''))
+                indir(v); sy = katman(m['metin'], m['kaynak'], v['video'][:-4], m.get('arapca', ''))
             except Exception as e:
                 print('yenilenemedi', v['id'], e); continue
-            v.update(metin=m['metin'], kaynak=m['kaynak'], tur=m['tur']); print('yenilendi', v['id'], m['kaynak'])
+            v.update(metin=m['metin'], kaynak=m['kaynak'], tur=m['tur'], selam_y=sy); print('yenilendi', v['id'], m['kaynak'])
         json.dump(onayli, open('videolar.json', 'w'), ensure_ascii=False, indent=1)
