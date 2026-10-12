@@ -45,7 +45,50 @@ KELIME_SN = 0.38   # okuma hızı: kelime başına
 BASLA = 1.0
 FPS_YAZI = 10
 
-def katman(metin, kaynak, cikti):
+COMMONS_ARAMA = ['Kaaba', 'Masjid al-Haram', 'Kaaba tawaf', 'Mosque interior', 'Prophet\'s Mosque Medina',
+                 'Sultan Ahmed Mosque interior', 'Islamic calligraphy', 'Mosque dome interior']
+COMMONS_LISANS = ('cc0', 'public domain', 'cc by', 'cc-by')   # CC BY / BY-SA: görüntü sahibinin adı videoya yazılır
+CUA = {'User-Agent': 'EzanSaatiVideo/1.0 (https://ezansaati-premium-2026.web.app; ezansaatidestek@gmail.com)'}
+
+def commons_adaylar(kullanilan):
+    import re
+    for q in COMMONS_ARAMA:
+        u = 'https://commons.wikimedia.org/w/api.php?' + urllib.parse.urlencode({
+            'action': 'query', 'format': 'json', 'generator': 'search', 'gsrnamespace': 6,
+            'gsrsearch': f'{q} filetype:video', 'gsrlimit': 40, 'prop': 'imageinfo',
+            'iiprop': 'url|size|mime|extmetadata'})
+        try:
+            veri = json.load(urllib.request.urlopen(urllib.request.Request(u, headers=CUA), timeout=60))
+        except Exception as e:
+            print('commons arama olmadı', q, e); continue
+        for sayfa in (veri.get('query', {}).get('pages', {}) or {}).values():
+            ii = (sayfa.get('imageinfo') or [{}])[0]
+            em = ii.get('extmetadata', {})
+            lis = (em.get('LicenseShortName', {}).get('value') or '').lower()
+            sure = float(ii.get('duration') or 0)
+            vid = 'c' + str(sayfa['pageid'])
+            if vid in kullanilan or not any(l in lis for l in COMMONS_LISANS) or 'nc' in lis or 'nd' in lis:
+                continue
+            if sure and sure < 8:
+                continue
+            url = ii.get('url', '')
+            m = re.match(r'(https://upload\.wikimedia\.org/wikipedia/commons)/(\w/\w\w)/(.+)$', url)
+            if not m:
+                continue
+            ad = m.group(3)
+            # Wikimedia'nın küçültülmüş (720p) kopyası; yoksa özgün dosya (çok büyük değilse)
+            adaylar_url = [f'{m.group(1)}/transcoded/{m.group(2)}/{ad}/{ad}.720p.vp9.webm',
+                           f'{m.group(1)}/transcoded/{m.group(2)}/{ad}/{ad}.480p.vp9.webm']
+            if (ii.get('size') or 0) < 150e6:
+                adaylar_url.append(url)
+            sahip = re.sub(r'<[^>]+>', '', em.get('Artist', {}).get('value') or '').strip()[:40]
+            kullanilan.add(vid)
+            yield {'sira': -1, 'id': vid, 'urls': adaylar_url, 'url': adaylar_url[0], 'dikey': (ii.get('height') or 0) > (ii.get('width') or 1),
+                   'sayfa': sayfa.get('fullurl') or 'https://commons.wikimedia.org/wiki/' + urllib.parse.quote(sayfa['title']),
+                   'arama': 'commons:' + q, 'etiket': sayfa['title'],
+                   'kredi': f"Görüntü: {sahip} · {em.get('LicenseShortName', {}).get('value', '')} · Wikimedia Commons"}
+
+def katman(metin, kaynak, cikti, kredi=''):
     """Zemin karartması ve logo sabit; yazı kelime kelime belirir (PNG dizisi, saniyede 10 kare)."""
     ov = Image.new('RGBA', (W, H), (0, 0, 0, 0))
     g = Image.new('L', (1, H))
@@ -56,6 +99,9 @@ def katman(metin, kaynak, cikti):
     ov.alpha_composite(kar)
     lg = Image.open(f'{KOK}/logo.webp').convert('RGBA'); lg.thumbnail((120, 120))
     ov.alpha_composite(lg, (W - lg.width - 36, H - 46 - lg.height))   # logo sağ altta
+    if kredi:   # CC BY lisansı: görüntü sahibinin adı
+        ImageDraw.Draw(ov).text((24, H - 34), kredi, font=ImageFont.truetype(f'{KOK}/yazi/Lora-SemiBold.ttf', 15),
+                                fill=(255, 255, 255, 150))
     ov.save('/tmp/kar.png')
 
     d = ImageDraw.Draw(Image.new('RGBA', (W, H)))
@@ -117,10 +163,16 @@ if __name__ == '__main__':
     metinler = [m for m in json.load(open(f'{KOK}/metinler.json')) if m['kaynak'] not in kullanilan_metin]
     random.shuffle(metinler)
     # Önce dikey videolar, aramalar karışık
-    havuz = list(adaylar(anahtar, kullanilan))
+    kaynak = sys.argv[2] if len(sys.argv) > 2 else 'hepsi'
+    havuz = []
+    if kaynak in ('commons', 'hepsi'):
+        havuz += list(commons_adaylar(kullanilan))
+    if kaynak in ('pixabay', 'hepsi'):
+        havuz += list(adaylar(anahtar, kullanilan))
+    print('aday sayısı', len(havuz))
     random.shuffle(havuz)
     # Önce öncelikli aramalardan; her aramadan en çok 2 video (çeşitlilik), dikeyler önde
-    havuz.sort(key=lambda v: (v['sira'], not v['dikey']))
+    havuz.sort(key=lambda v: (v['sira'], not v['dikey']))  # Commons (sira -1) önce
     say, secim = {}, []
     for v in havuz:
         if say.get(v['arama'], 0) < 2:
@@ -133,12 +185,22 @@ if __name__ == '__main__':
         if n >= adet:
             break
         n += 1
-        try:
-            open('/tmp/kaynak.mp4', 'wb').write(ac(v['url']).read())
-        except urllib.error.HTTPError as e:
-            print('indirilemedi', v['sayfa'], e.code); n -= 1; continue
+        tamam = False
+        for url in v.get('urls', [v['url']]):
+            try:
+                req = urllib.request.Request(url, headers=CUA if 'wikimedia' in url else UA)
+                open('/tmp/kaynak.mp4', 'wb').write(urllib.request.urlopen(req, timeout=300).read())
+                tamam = True; break
+            except Exception as e:
+                print('indirilemedi', url, e)
+        if not tamam:
+            n -= 1; continue
         ad = f'taslak/{n:02d}'
-        katman(m['metin'], m['kaynak'], ad)
-        liste.append({'no': n, 'pixabay': v['id'], 'sayfa': v['sayfa'], 'arama': v['arama'], 'dikey': v['dikey'], **m})
+        try:
+            katman(m['metin'], m['kaynak'], ad, v.get('kredi', ''))
+        except subprocess.CalledProcessError as e:
+            print('işlenemedi', v['sayfa'], e); n -= 1; continue
+        liste.append({'no': n, 'pixabay': v['id'], 'sayfa': v['sayfa'], 'arama': v['arama'], 'dikey': v['dikey'],
+                      'kredi': v.get('kredi', ''), **m})
         print(n, v['sayfa'], m['kaynak'])
     json.dump(liste, open('taslak/liste.json', 'w'), ensure_ascii=False, indent=1)
