@@ -11,6 +11,9 @@ on:
       kaynak:
         description: 'Kaynak: hepsi, commons, pixabay ya da pexels'
         default: 'hepsi'
+      peygamber:
+        description: 'kaynak=aday: Hz. Peygamber metni konacak aday numaraları (gül, hat)'
+        default: ''
       baglantilar:
         description: 'Pexels video bağlantıları (boşlukla ayrılmış; kaynak = pexels)'
         default: ''
@@ -30,6 +33,7 @@ jobs:
         env:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           BAGLANTILAR: ${{ inputs.baglantilar }}
+          PEYGAMBER: ${{ inputs.peygamber }}
       - run: |
           cp -r taslak /tmp/taslak
           git config user.name "github-actions[bot]"

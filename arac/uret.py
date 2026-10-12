@@ -207,6 +207,9 @@ def katman(metin, kaynak, cikti, kredi='', arapca=''):
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-ss', f'{min(son + 1.5, sure - 1):.2f}', '-i', cikti + '.mp4',
         '-frames:v', '1', '-vf', 'scale=360:-2', '-q:v', '4', cikti + '.jpg'], check=True)
 
+# Bağlamından koparılınca anlamı bozulan metinler Peygamber videolarına konmaz
+PEY_HARIC = {'Hadis-i Şerif · Buhârî, Şurût, 15', 'Hadis-i Şerif · İbn Hanbel, VI, 157'}
+
 def yenile():
     """Onaylı videoları (videolar.json) güncel yazı düzeniyle aynı metin ve kaynakla yeniden üretir."""
     ar = {m['kaynak']: m.get('arapca', '') for m in json.load(open(f'{KOK}/metinler.json'))}
@@ -227,7 +230,15 @@ if __name__ == '__main__':
     onayli = json.load(open('videolar.json'))
     kullanilan = {v['pixabay'] for v in onayli}
     kullanilan_metin = {v['kaynak'] for v in onayli}
-    metinler = [m for m in json.load(open(f'{KOK}/metinler.json')) if m['kaynak'] not in kullanilan_metin]
+    import re
+    import pro   # profesyonel düzen (kısa metin, harf harf yazı, sakin yer)
+    metinler = [m for m in json.load(open(f'{KOK}/metinler.json'))
+                if m['kaynak'] not in kullanilan_metin and len(m['metin']) <= pro.MAKS_METIN]
+    # Hz. Peygamber'le ilgili metinler gül/hat videolarına (PEYGAMBER = aday numaraları)
+    PEY = re.compile(r'Peygamber|Resûl|Muhammed|Nebi', re.I)
+    pey_no = {int(x) for x in os.environ.get('PEYGAMBER', '').replace(',', ' ').split()}
+    pey_metin = [m for m in metinler if PEY.search(m['metin']) and m['kaynak'] not in PEY_HARIC]
+    metinler = [m for m in metinler if m not in pey_metin]
     random.shuffle(metinler)
     # Önce dikey videolar, aramalar karışık
     kaynak = sys.argv[2] if len(sys.argv) > 2 else 'hepsi'
@@ -236,7 +247,8 @@ if __name__ == '__main__':
         sec = {int(x) for x in os.environ.get('BAGLANTILAR', '').replace(',', ' ').split()}
         for a in json.load(open('aday/liste.json')):
             if a['no'] in sec and a['id'] not in kullanilan:
-                havuz.append({'id': a['id'], 'url': a['url'], 'sayfa': a['sayfa'], 'arama': 'pexels', 'dikey': True, 'sira': -2})
+                havuz.append({'id': a['id'], 'url': a['url'], 'sayfa': a['sayfa'], 'arama': 'pexels', 'dikey': True, 'sira': -2,
+                              'peygamber': a['no'] in pey_no})
     if kaynak == 'pexels':
         havuz += list(pexels_adaylar(os.environ.get('BAGLANTILAR', '').split(), kullanilan))
     if kaynak in ('commons', 'hepsi'):
@@ -256,9 +268,11 @@ if __name__ == '__main__':
     os.makedirs('taslak', exist_ok=True)
     liste = []
     n = 0
-    for v, m in zip(havuz, metinler):
+    sira = iter(metinler)
+    for v in havuz:
         if n >= adet:
             break
+        m = pey_metin.pop(0) if v.get('peygamber') and pey_metin else next(sira)
         n += 1
         tamam = False
         for url in v.get('urls', [v['url']]):
@@ -272,10 +286,10 @@ if __name__ == '__main__':
             n -= 1; continue
         ad = f'taslak/{n:02d}'
         try:
-            katman(m['metin'], m['kaynak'], ad, v.get('kredi', ''), m.get('arapca', ''))
+            sy = pro.katman(m['metin'], m['kaynak'], ad, m.get('arapca', ''))
         except subprocess.CalledProcessError as e:
             print('işlenemedi', v['sayfa'], e); n -= 1; continue
         liste.append({'no': n, 'pixabay': v['id'], 'sayfa': v['sayfa'], 'arama': v['arama'], 'dikey': v['dikey'],
-                      'kredi': v.get('kredi', ''), **m})
+                      'kredi': v.get('kredi', ''), 'selam_y': sy, **m})
         print(n, v['sayfa'], m['kaynak'])
     json.dump(liste, open('taslak/liste.json', 'w'), ensure_ascii=False, indent=1)
