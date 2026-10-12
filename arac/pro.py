@@ -10,7 +10,8 @@ KOK = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, KOK)
 from uret import UA, W, H, parlaklik
 
-SURE, FPS_YAZI, ZOOM = 13.0, 15, 0.06
+SURE, FPS_YAZI, ZOOM = 13.0, 30, 0.06
+HIZ = 34          # Türkçe meal harf harf: saniyede harf
 MAKS_METIN = 110          # videoda yalnız kısa metinler (uzunlar kartlarda)
 RENK = ('eq=contrast=1.06:saturation=0.92:brightness=-0.015,'
         'colorbalance=rs=0.04:gs=0.01:bs=-0.04:rh=0.03:bh=-0.03,vignette=angle=PI/5')
@@ -80,14 +81,14 @@ def katman(metin, kaynak, cikti, arapca=''):
     LH, ALH = 62, 80
     blok = len(ar) * ALH + (24 if ar else 0) + len(tr) * LH + 50
     y = bos_yer(blok + SELAM_ALAN)
-    yer = []                                     # (başlangıç sn, y, metin, font, renk, rtl)
+    yer = []                                     # (başlangıç sn, y, metin, font, renk, rtl, harf harf mi)
     t = 1.0
     for s in ar:
-        yer.append((t, y, s, fa, ARAPCA, True)); y += ALH
-    if ar: y += 24; t += 1.6
+        yer.append((t, y, s, fa, ARAPCA, True, False)); y += ALH
+    if ar: y += 24; t += 1.3
     for s in tr:
-        yer.append((t, y, s, f, KREM, False)); y += LH; t += 0.75
-    yer.append((t + 0.3, y + 14, kaynak, fs, ALTIN, False))
+        yer.append((t, y, s, f, KREM, False, True)); y += LH; t += len(s) / HIZ
+    yer.append((t + 0.3, y + 14, kaynak, fs, ALTIN, False, False))
     son = t + 0.3 + 0.9
     sure = max(SURE, son + 4.0)
     selam_y = y + 68                             # uygulama selam yazısını buraya çizer (ayetin hemen altı)
@@ -114,7 +115,20 @@ def katman(metin, kaynak, cikti, arapca=''):
     for n in range(int((son + 0.5) * FPS_YAZI) + 1):
         zaman = n / FPS_YAZI
         tl = Image.new('RGBA', (W, H), (0, 0, 0, 0)); dd = ImageDraw.Draw(tl)
-        for bas, yy, s, font, renk, rtl in yer:
+        for bas, yy, s, font, renk, rtl, harf in yer:
+            if harf:   # daktilo: harfler sırayla, her biri çok kısa bir geçişle
+                if zaman < bas: continue
+                x0 = (W - dd.textlength(s, font=font)) / 2
+                k = (zaman - bas) * HIZ
+                tam = min(len(s), int(k))
+                if tam:
+                    dd.text((x0, yy), s[:tam], font=font, fill=renk + (255,), stroke_width=2, stroke_fill=KOYU + (255,))
+                if tam < len(s):
+                    al = int(255 * (k - tam))
+                    if al:
+                        dd.text((x0 + dd.textlength(s[:tam], font=font), yy), s[tam], font=font, fill=renk + (al,),
+                                stroke_width=2, stroke_fill=KOYU + (al,))
+                continue
             a = min(1, max(0, (zaman - bas) / 0.9))
             if a <= 0: continue
             e = 1 - (1 - a) ** 3                 # yumuşak yavaşlama
