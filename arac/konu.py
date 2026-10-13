@@ -27,18 +27,18 @@ def medya_konu(etiketler):
     (\"tulips, flowers, interior\" çiçektir; \"mosque, arabic\" camidir)."""
     for e in [x.strip() for x in etiketler.lower().split(',') if x.strip()]:
         for k, kelimeler in ETIKET:
-            if any(w in e for w in kelimeler):
+            if any(re.search(r'\b' + re.escape(w), e) for w in kelimeler):
                 return k
     return 'doga'
 
 
 METIN = [  # (konu, desen, uygun görüntü konuları)
     ('hac', r'kâbe|kabe|hac\b|hacc|umre|arefe|mescid-i haram', ['kabe']),
-    ('peygamber', r'peygamber|resûl|resul|muhammed|nebi|salat ederler|sünnet', ['gul', 'medine', 'hat']),
-    ('namaz', r'namaz|cemaat|mescit|mescid|secde|rükû|ruku|saf(lar)?ı|ezan|abdest|cuma', ['cami_ic', 'namaz', 'cami_dis']),
+    ('peygamber', r'peygamber|\bresûl|\bresul|muhammed|\bnebi|salat ederler|\bsünnet', ['gul', 'medine', 'hat']),
+    ('namaz', r'\bnamaz|\bcemaat|\bmescit|\bmescid|\bsecde|\brükû|\bruku\b|\bsaf(lar)?ı\b|\bezan|\babdest|\bcuma\b', ['cami_ic', 'namaz', 'cami_dis']),
     ('kuran', r"kur[’']?an|kitab|ayet|zikr|zikir|tesbih|hamd|hamt|elhamdülillah", ['hat', 'kuran', 'cami_ic']),
     ('oruc', r'oruç|ramazan|iftar|sahur', ['fener', 'gece']),
-    ('dua', r'dua|allah[’\']?ım|sığınırım|bağışla|tevbe|af\b|affet|mağfiret|tevekkül|sabr|sabır|vekil', ['gece', 'mum', 'kabe', 'namaz']),
+    ('dua', r'\bdua|allah[’\']?ım|sığınırım|bağışla|\btevbe|\baf\b|\baffet|mağfiret|tevekkül|\bsabr|\bsabır|\bvekil', ['gece', 'mum', 'kabe', 'namaz']),
     ('kudret', r'gökler|yer(?:de|i|in)\b|yeryüzü|yarat|gece ile gündüz|geceyi|kudret|mülk|her şeye gücü', ['doga', 'gece', 'cicek']),
     ('ahiret', r'cennet|ahiret|âhiret|kıyamet|hesap', ['doga', 'gece']),
     ('rahmet', r'rahmet|merhamet|rahim|rahîm|rahman', ['doga', 'cicek', 'gul']),
