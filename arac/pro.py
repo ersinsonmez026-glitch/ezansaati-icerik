@@ -42,7 +42,12 @@ def sar(d, metin, font, genislik, rtl=False):
             satir.append(' '.join(cur)); cur = [w]
         else:
             cur.append(w)
-    return satir + [' '.join(cur)]
+    satir += [' '.join(cur)]
+    # Dengeli satırlar: aynı satır sayısını veren en dar genişlik seçilir (son satırda tek kelime kalmasın)
+    if len(satir) > 1 and genislik > 200:
+        dar = sar(d, metin, font, genislik - 20, rtl)
+        if len(dar) == len(satir): return dar
+    return satir
 
 
 SELAM_H = 100                 # uygulamadaki selam yazısının yüksekliği (720x1280'de)
@@ -76,20 +81,20 @@ def bos_yer(yukseklik):
 
 def katman(metin, kaynak, cikti, arapca='', hat=False):
     d = ImageDraw.Draw(Image.new('RGBA', (W, H)))
-    f = ImageFont.truetype(f'{KOK}/yazi/Lora-SemiBold.ttf', 44)
+    f = ImageFont.truetype(f'{KOK}/yazi/Lora-Medium.ttf', 44)
     fs = ImageFont.truetype(f'{KOK}/yazi/Lora-Bold.ttf', 26)
-    fa = ImageFont.truetype(f'{KOK}/yazi/Amiri-Regular.ttf', 48)
+    fa = ImageFont.truetype(f'{KOK}/yazi/AmiriQuran-Regular.ttf', 46)
     tr = sar(d, '“' + metin.strip('“”"') + '”', f, W - 120)
     ar = sar(d, arapca, fa, W - 110, rtl=True) if arapca else []
     if len(ar) > 2 or hat: ar = []               # uzun Arapça ya da görüntüde hat varsa Arapça satır konmaz
-    LH, ALH = 62, 80
-    blok = len(ar) * ALH + (24 if ar else 0) + len(tr) * LH + 50
+    LH, ALH = 62, 96   # Amiri Quran harekeleri uzun: satır arası geniş
+    blok = len(ar) * ALH + (34 if ar else 0) + len(tr) * LH + 50
     y = bos_yer(blok + SELAM_ALAN)
     yer = []                                     # (başlangıç sn, y, metin, font, renk, rtl, harf harf mi)
     t = 1.0
     for s in ar:
         yer.append((t, y, s, fa, ARAPCA, True, False)); y += ALH
-    if ar: y += 24; t += 1.3
+    if ar: y += 34; t += 1.3
     for s in tr:
         yer.append((t, y, s, f, KREM, False, True)); y += LH; t += len(s) / HIZ
     yer.append((t + 0.3, y + 14, kaynak, fs, ALTIN, False, False))
@@ -129,12 +134,12 @@ def katman(metin, kaynak, cikti, arapca='', hat=False):
                 k = (zaman - bas) * HIZ
                 tam = min(len(s), int(k))
                 if tam:
-                    dd.text((x0, yy), s[:tam], font=font, fill=renk + (255,), stroke_width=2, stroke_fill=KOYU + (255,))
+                    dd.text((x0, yy), s[:tam], font=font, fill=renk + (255,), stroke_width=1, stroke_fill=KOYU + (255,))
                 if tam < len(s):
                     al = int(255 * (k - tam))
                     if al:
                         dd.text((x0 + dd.textlength(s[:tam], font=font), yy), s[tam], font=font, fill=renk + (al,),
-                                stroke_width=2, stroke_fill=KOYU + (al,))
+                                stroke_width=1, stroke_fill=KOYU + (al,))
                 continue
             a = min(1, max(0, (zaman - bas) / 0.9))
             if a <= 0: continue
@@ -142,12 +147,8 @@ def katman(metin, kaynak, cikti, arapca='', hat=False):
             al = int(255 * e); kay = int(14 * (1 - e))
             x = (W - dd.textlength(s, font=font, direction='rtl' if rtl else None)) / 2
             yon = 'rtl' if rtl else None
-            if rtl:   # Amiri ince: koyu dış kontur, üstüne aynı renkle 1 px kalınlaştırma
-                dd.text((x, yy + kay), s, font=font, fill=KOYU + (al,), direction=yon, stroke_width=3, stroke_fill=KOYU + (al,))
-                dd.text((x, yy + kay), s, font=font, fill=renk + (al,), direction=yon, stroke_width=1, stroke_fill=renk + (al,))
-            else:
-                dd.text((x, yy + kay), s, font=font, fill=renk + (al,), direction=yon,
-                        stroke_width=1 if font is fs else 2, stroke_fill=KOYU + (al,))
+            # İnce koyu kenar; okunurluğu asıl alttaki yumuşak gölge sağlar
+            dd.text((x, yy + kay), s, font=font, fill=renk + (al,), direction=yon, stroke_width=1, stroke_fill=KOYU + (al,))
         golge = Image.new('RGBA', (W, H), (0, 0, 0, 255))
         golge.putalpha(tl.split()[3].filter(ImageFilter.GaussianBlur(6)).point(lambda v: int(v * .8)))
         yazi = Image.new('RGBA', (W, H), (0, 0, 0, 0)); yazi.alpha_composite(golge, (0, 3)); yazi.alpha_composite(tl)

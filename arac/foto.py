@@ -89,19 +89,19 @@ def kart(img, metin, kaynak, cikti, arapca='', hat=False, selam=True, odak=0.5, 
     img = Image.merge('RGB', (rr.point(lambda v: min(255, v * 1.04)), gg, bb.point(lambda v: v * 0.95)))
     d = ImageDraw.Draw(Image.new('RGB', (W, H)))
     uzun = len(metin) > MAKS_METIN
-    f = ImageFont.truetype(f'{KOK}/yazi/Lora-SemiBold.ttf', int((38 if uzun else 44) * O))
+    f = ImageFont.truetype(f'{KOK}/yazi/Lora-Medium.ttf', int((38 if uzun else 44) * O))
     fs = ImageFont.truetype(f'{KOK}/yazi/Lora-Bold.ttf', int(26 * O))
-    fa = ImageFont.truetype(f'{KOK}/yazi/Amiri-Regular.ttf', int(48 * O))
+    fa = ImageFont.truetype(f'{KOK}/yazi/AmiriQuran-Regular.ttf', int(46 * O))
     tr = sar(d, '“' + metin.strip('“”"') + '”', f, W - 120 * O)
     ar = sar(d, arapca, fa, W - 110 * O, rtl=True) if arapca else []
     if len(ar) > 2: ar = []
-    LH, ALH = int((54 if uzun else 62) * O), int(80 * O)
-    blok = len(ar) * ALH + (int(24 * O) if ar else 0) + len(tr) * LH + int(50 * O)
+    LH, ALH = int((54 if uzun else 62) * O), int(96 * O)   # Amiri Quran harekeleri uzun: satır arası geniş
+    blok = len(ar) * ALH + (int(34 * O) if ar else 0) + len(tr) * LH + int(50 * O)
     yuk = blok + (int((68 + SELAM_H - 50) * O) if selam else 0)
     y = sakin_yer(img, yuk) if yer is None else int(min(max(H * yer - yuk / 2, 90 * O), H - 170 * O - yuk))
     satirlar = []
     for s in ar: satirlar.append((y, s, fa, ARAPCA, True)); y += ALH
-    if ar: y += int(24 * O)
+    if ar: y += int(34 * O)
     for s in tr: satirlar.append((y, s, f, KREM, False)); y += LH
     satirlar.append((y + int(14 * O), kaynak, fs, ALTIN, False))
     selam_y = y + int(68 * O)
@@ -120,11 +120,8 @@ def kart(img, metin, kaynak, cikti, arapca='', hat=False, selam=True, odak=0.5, 
     for yy, s, font, renk, rtl in satirlar:
         yon = 'rtl' if rtl else None
         x = (W - dd.textlength(s, font=font, direction=yon)) / 2
-        if rtl:
-            dd.text((x, yy), s, font=font, fill=KOYU, direction=yon, stroke_width=4, stroke_fill=KOYU)
-            dd.text((x, yy), s, font=font, fill=renk, direction=yon, stroke_width=1, stroke_fill=renk)
-        else:
-            dd.text((x, yy), s, font=font, fill=renk, stroke_width=1 if font is fs else 3, stroke_fill=KOYU)
+        # İnce koyu kenar; okunurluğu asıl alttaki yumuşak gölge sağlar
+        dd.text((x, yy), s, font=font, fill=renk, direction=yon, stroke_width=int(1.5 * O) if font is not fs else 1, stroke_fill=KOYU)
     sh = Image.new('RGBA', (W, H), (0, 0, 0, 255))
     sh.putalpha(tl.split()[3].filter(ImageFilter.GaussianBlur(8)).point(lambda v: int(v * .8)))
     c.alpha_composite(sh, (0, 4)); c.alpha_composite(tl)
