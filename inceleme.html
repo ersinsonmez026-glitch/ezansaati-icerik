@@ -85,6 +85,9 @@ button:focus-visible { outline: 3px solid var(--altin); outline-offset: 2px }
 </dialog>
 <script>
 const ANAHTAR = 'ezansaati-inceleme-sil';
+// Liste her zaman güncel (GitHub), görüntüler hızlı sunucudan (jsDelivr)
+const LISTE = 'https://raw.githubusercontent.com/ersinsonmez026-glitch/ezansaati-icerik/main/';
+const MEDYA = 'https://cdn.jsdelivr.net/gh/ersinsonmez026-glitch/ezansaati-icerik@main/';
 let sil = new Set();
 try { sil = new Set(JSON.parse(localStorage.getItem(ANAHTAR) || '[]')); } catch (e) {}
 const kaydet = () => { try { localStorage.setItem(ANAHTAR, JSON.stringify([...sil])); } catch (e) {} };
@@ -145,10 +148,10 @@ $('kopya').onclick = async () => {
   try { await navigator.clipboard.writeText(metin); $('kopya').textContent = 'Kopyalandı'; }
   catch (e) { c.select(); $('kopya').textContent = 'Seçip kopyala'; }
 };
-Promise.all([fetch('videolar.json').then(r => r.json()), fetch('fotolar.json').then(r => r.json())])
+Promise.all([fetch(LISTE + 'videolar.json').then(r => r.json()), fetch(LISTE + 'fotolar.json').then(r => r.json())])
   .then(([v, f]) => {
-    video = v.map(x => ({ ...x, video: x.video }));
-    foto = f.map(x => ({ ...x, video: null }));
+    video = v.map(x => ({ ...x, video: MEDYA + x.video, kapak: MEDYA + x.kapak }));
+    foto = f.map(x => ({ ...x, video: null, resim: MEDYA + x.resim, kapak: MEDYA + x.kapak }));
     ciz();
   })
   .catch(() => { $('izgara').textContent = 'Liste yüklenemedi. İnternet bağlantını kontrol edip sayfayı yenile.'; });
