@@ -186,6 +186,35 @@ def gazze():
     json.dump(onayli + yeni, open('fotolar.json', 'w'), ensure_ascii=False, indent=1)
 
 
+def eslestir():
+    """Onaylı kartları yeniden çizer: görüntünün konusu Pixabay etiketlerinden, metin konusuna göre dağıtılır
+    (cemaat hadisi cami içine, kudret ayeti doğaya …); logo büyük, hat görüntüsünde Arapça satır yok."""
+    import konu
+    tum = json.load(open('fotolar.json'))
+    gazze_k = [f for f in tum if f.get('bolum') == 'gazze']
+    onayli = [f for f in tum if f.get('bolum') != 'gazze']
+    metinler = [m for m in json.load(open(f'{KOK}/metinler.json')) if m['kaynak'] not in HARIC and len(m['metin']) <= MAKS_KART]
+    random.seed(11); random.shuffle(metinler)
+    for f in onayli:
+        u = 'https://pixabay.com/api/?' + urllib.parse.urlencode({'key': os.environ['PIXABAY_API_KEY'], 'id': f['pixabay']})
+        try:
+            h = json.loads(ac(u))['hits'][0]
+            f['konu'], f['_url'] = konu.medya_konu(h.get('tags', '')), h['largeImageURL']
+        except Exception as e:
+            print('etiket yok', f['id'], e); f['konu'] = f.get('konu', 'doga')
+    for f, m in konu.dagit([f for f in onayli if f.get('_url')], metinler):
+        try:
+            img = Image.open(io.BytesIO(ac(f['_url']))).convert('RGB')
+            sy = kart(img, m['metin'], m['kaynak'], f['resim'][:-4], m.get('arapca', ''), hat=f['konu'] == 'hat')
+        except Exception as e:
+            print('yenilenemedi', f['id'], e); continue
+        f.update(metin=m['metin'], kaynak=m['kaynak'], tur=m['tur'], selam_y=sy)
+        print('eşleşti', f['id'], f['konu'], m['kaynak'])
+    for f in onayli: f.pop('_url', None)
+    onayli.sort(key=lambda x: konu.SIRA.get(x.get('konu'), 9))
+    json.dump(onayli + gazze_k, open('fotolar.json', 'w'), ensure_ascii=False, indent=1)
+
+
 def onay(numaralar):
     secim = {int(x) for x in numaralar.replace(' ', '').split(',') if x}
     onayli = json.load(open('fotolar.json')) if os.path.exists('fotolar.json') else []
@@ -212,3 +241,5 @@ if __name__ == '__main__':
         onay(sys.argv[2])
     elif mod == 'gazze':
         gazze()
+    elif mod == 'eslestir':
+        eslestir()

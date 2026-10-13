@@ -3,6 +3,7 @@ name: Fotoğraf kartları
 # arac/foto.py. mod=aday: Pixabay'den numaralı vitrin ("foto-aday" dalı).
 # mod=taslak: seçilen numaralardan kart taslakları ("foto-taslak" dalı, uygulamaya girmez).
 # mod=onay: seçilen taslakları fotolar/ ve fotolar.json'a ekler.
+# mod=eslestir: onaylı kartları konu eşleşmesiyle yeniden çizer. mod=gazze: Gazze kartları (arac/gazze).
 on:
   workflow_dispatch:
     inputs:
@@ -35,9 +36,9 @@ jobs:
         env:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
       - run: |
-          if [ "${{ inputs.mod }}" = onay ]; then
+          if [ "${{ inputs.mod }}" = onay ] || [ "${{ inputs.mod }}" = eslestir ] || [ "${{ inputs.mod }}" = gazze ]; then
             rm -rf foto-taslak; git add fotolar fotolar.json
-            git commit -m "Onaylanan foto kartlar: ${{ inputs.girdi }}"; git push
+            git commit -m "Foto kartlar (${{ inputs.mod }}): ${{ inputs.girdi }}"; git pull -q --rebase; git push
           else
             D=foto-${{ inputs.mod }}; cp -r $D /tmp/$D
             git checkout --orphan dal-$D; git rm -rfq .; rm -rf $D; cp -r /tmp/$D $D
