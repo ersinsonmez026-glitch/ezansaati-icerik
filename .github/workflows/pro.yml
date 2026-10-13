@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       mod:
-        description: 'ornek ya da hepsi'
+        description: 'ornek, hepsi ya da eslestir'
         default: 'ornek'
       kimlikler:
         description: 'ornek için video kimlikleri (virgülle)'
@@ -26,7 +26,7 @@ jobs:
       - run: python3 arac/pro.py "${{ inputs.mod }}" "${{ inputs.kimlikler }}"
         env:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
-      - if: inputs.mod == 'hepsi'
+      - if: inputs.mod == 'hepsi' || inputs.mod == 'eslestir'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"

@@ -28,7 +28,9 @@ def indir(v):
         url = f"https://www.pexels.com/download/video/{k.removeprefix('pexels-')}/"
     else:
         u = 'https://pixabay.com/api/videos/?' + urllib.parse.urlencode({'key': os.environ['PIXABAY_API_KEY'], 'id': k})
-        hit = json.load(urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=60))['hits'][0]['videos']
+        h = json.load(urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=60))['hits'][0]
+        v['_etiket'] = h.get('tags', '')
+        hit = h['videos']
         url = (hit.get('large') or {}).get('url') or hit['medium']['url']
     open('/tmp/kaynak.mp4', 'wb').write(urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=300).read())
 
@@ -72,14 +74,14 @@ def bos_yer(yukseklik):
     return en_y
 
 
-def katman(metin, kaynak, cikti, arapca=''):
+def katman(metin, kaynak, cikti, arapca='', hat=False):
     d = ImageDraw.Draw(Image.new('RGBA', (W, H)))
     f = ImageFont.truetype(f'{KOK}/yazi/Lora-SemiBold.ttf', 44)
     fs = ImageFont.truetype(f'{KOK}/yazi/Lora-Bold.ttf', 26)
     fa = ImageFont.truetype(f'{KOK}/yazi/Amiri-Regular.ttf', 48)
     tr = sar(d, '“' + metin.strip('“”"') + '”', f, W - 120)
     ar = sar(d, arapca, fa, W - 110, rtl=True) if arapca else []
-    if len(ar) > 2: ar = []                      # uzun Arapça videoyu kalabalıklaştırır
+    if len(ar) > 2 or hat: ar = []               # uzun Arapça ya da görüntüde hat varsa Arapça satır konmaz
     LH, ALH = 62, 80
     blok = len(ar) * ALH + (24 if ar else 0) + len(tr) * LH + 50
     y = bos_yer(blok + SELAM_ALAN)
@@ -96,7 +98,7 @@ def katman(metin, kaynak, cikti, arapca=''):
     selam_y = y + 68                             # uygulama selam yazısını buraya çizer (ayetin hemen altı)
     ust, alt = yer[0][1] - 40, selam_y + SELAM_H + 30   # bant selam yazısını da kapsar
 
-    # Sabit katman: alt karartma, yazı bandı (parlaklığa göre), logo
+    # Karartma katmanı (alt degrade + yazı bandı): yazıyla birlikte yavaş yavaş belirir. Logo ayrı ve sabit.
     ov = Image.new('RGBA', (W, H), (0, 0, 0, 0))
     g = Image.new('L', (1, H))
     for yy in range(H):
@@ -107,9 +109,12 @@ def katman(metin, kaynak, cikti, arapca=''):
     m = Image.new('L', (W, H), 0); ImageDraw.Draw(m).rounded_rectangle((10, ust, W - 10, alt), 50, fill=koyu)
     bant = Image.new('RGBA', (W, H), (0, 0, 0, 255)); bant.putalpha(m.filter(ImageFilter.GaussianBlur(50)))
     ov.alpha_composite(bant)
-    lg = Image.open(f'{KOK}/logo.webp').convert('RGBA'); lg.thumbnail((110, 110))
-    ov.alpha_composite(lg, (W - lg.width - 34, H - 44 - lg.height))
-    ov.save('/tmp/kar.png')
+    ov.save('/tmp/bant.png')
+    logo = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+    lg = Image.open(f'{KOK}/logo.webp').convert('RGBA'); lg.thumbnail((132, 132))   # %20 büyük
+    logo.alpha_composite(lg, (W - lg.width - 30, H - 40 - lg.height))
+    logo.save('/tmp/kar.png')
+    bant_bas = max(0.0, yer[0][0] - 0.4); bant_sure = max(1.2, son - 0.6 - bant_bas)
 
     # Yazı: her satır 0,9 sn'de yumuşakça ve 14 piksel yukarı kayarak belirir
     os.makedirs('/tmp/yz', exist_ok=True)
@@ -150,11 +155,13 @@ def katman(metin, kaynak, cikti, arapca=''):
 
     z = f'(1+{ZOOM}*t/{sure:.2f})'
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-stream_loop', '-1', '-i', '/tmp/kaynak.mp4',
-        '-loop', '1', '-i', '/tmp/kar.png', '-framerate', str(FPS_YAZI), '-i', '/tmp/yz/%04d.png', '-filter_complex',
+        '-loop', '1', '-i', '/tmp/kar.png', '-framerate', str(FPS_YAZI), '-i', '/tmp/yz/%04d.png',
+        '-loop', '1', '-i', '/tmp/bant.png', '-filter_complex',
         f'[0]scale={W*2}:{H*2}:force_original_aspect_ratio=increase,crop={W*2}:{H*2},fps=30,'
         f"scale=w='2*trunc({W*2}*{z}/2)':h='2*trunc({H*2}*{z}/2)':eval=frame,crop={W*2}:{H*2},"
         f'scale={W}:{H}:flags=lanczos,{RENK},format=yuv420p[bg];'
-        '[bg][1]overlay[b1];[2]format=rgba[t];[b1][t]overlay=eof_action=repeat,'
+        f'[3]format=rgba,fade=in:st={bant_bas:.2f}:d={bant_sure:.2f}:alpha=1[bt];[bg][bt]overlay=shortest=1[b0];'
+        '[b0][1]overlay[b1];[2]format=rgba[t];[b1][t]overlay=eof_action=repeat,'
         f'fade=in:st=0:d=1,fade=out:st={sure-1:.2f}:d=1,format=yuv420p[v]',
         '-map', '[v]', '-an', '-t', f'{sure:.2f}', '-c:v', 'libx264', '-preset', 'slow', '-crf', '24',
         '-movflags', '+faststart', cikti + '.mp4'], check=True)
@@ -188,6 +195,32 @@ if __name__ == '__main__':
             indir(v); sy = katman(m['metin'], m['kaynak'], f'taslak/{n:02d}', m.get('arapca', ''))
             liste.append({'no': n, 'id': i, 'selam_y': sy, **m}); print(n, i, m['kaynak'], sy)
         json.dump(liste, open('taslak/liste.json', 'w'), ensure_ascii=False, indent=1)
+    elif mod == 'eslestir':
+        # Konu eşleşmesi: her videonun konusu (Pexels: elle, Pixabay: etiket), metinler konuya göre yeniden dağıtılır
+        import konu
+        tum = json.load(open(f'{KOK}/metinler.json'))
+        kisa = [m for m in tum if len(m['metin']) <= MAKS_METIN and m['kaynak'] not in HARIC]
+        for v in onayli:
+            k = str(v['pixabay'])
+            if k.startswith('pexels-'):
+                v['konu'] = konu.PEXELS.get(k.removeprefix('pexels-'), v.get('konu', 'cami_dis'))
+            else:
+                u = 'https://pixabay.com/api/videos/?' + urllib.parse.urlencode({'key': os.environ['PIXABAY_API_KEY'], 'id': k})
+                try:
+                    h = json.load(urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=60))['hits'][0]
+                    v['konu'] = konu.medya_konu(h.get('tags', ''))
+                except Exception as e:
+                    print('etiket yok', k, e); v['konu'] = v.get('konu', 'doga')
+        for v, m in konu.dagit(onayli, kisa):
+            try:
+                indir(v); sy = katman(m['metin'], m['kaynak'], v['video'][:-4], m.get('arapca', ''), hat=v['konu'] == 'hat')
+            except Exception as e:
+                print('yenilenemedi', v['id'], e); continue
+            v.update(metin=m['metin'], kaynak=m['kaynak'], tur=m['tur'], selam_y=sy)
+            print('eşleşti', v['id'], v['konu'], m['kaynak'])
+            json.dump(onayli, open('videolar.json', 'w'), ensure_ascii=False, indent=1)
+        onayli.sort(key=lambda x: konu.SIRA.get(x.get('konu'), 9))
+        json.dump(onayli, open('videolar.json', 'w'), ensure_ascii=False, indent=1)
     elif mod == 'hepsi':
         for v in onayli:
             m = kisa_metin(v, metinler, kullanilan); kullanilan.add(m['kaynak'])
