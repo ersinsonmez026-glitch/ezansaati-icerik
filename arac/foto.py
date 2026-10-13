@@ -75,10 +75,13 @@ def sakin_yer(img, yukseklik):
     return en_y
 
 
-def kart(img, metin, kaynak, cikti, arapca=''):
+def kart(img, metin, kaynak, cikti, arapca='', hat=False, selam=True, odak=0.5):
+    """hat: görüntüde hat yazısı var, Arapça satır konmaz. selam: altta selam yazısına yer bırak. odak: yatay kesim merkezi (0-1)."""
+    if hat: arapca = ''
     r = max(W / img.width, H / img.height)
     img = img.resize((int(img.width * r) + 1, int(img.height * r) + 1), Image.LANCZOS)
-    img = img.crop(((img.width - W) // 2, (img.height - H) // 2, (img.width - W) // 2 + W, (img.height - H) // 2 + H))
+    ox = int(min(max(0, img.width * odak - W / 2), img.width - W))
+    img = img.crop((ox, (img.height - H) // 2, ox + W, (img.height - H) // 2 + H))
     # Sıcak, sinematik ton (videolarla aynı his) ve hafif kenar kararması
     img = ImageEnhance.Contrast(ImageEnhance.Color(img).enhance(0.92)).enhance(1.06)
     rr, gg, bb = img.split()
@@ -93,14 +96,14 @@ def kart(img, metin, kaynak, cikti, arapca=''):
     if len(ar) > 2: ar = []
     LH, ALH = int((54 if uzun else 62) * O), int(80 * O)
     blok = len(ar) * ALH + (int(24 * O) if ar else 0) + len(tr) * LH + int(50 * O)
-    y = sakin_yer(img, blok + int((68 + SELAM_H - 50) * O))
+    y = sakin_yer(img, blok + (int((68 + SELAM_H - 50) * O) if selam else 0))
     satirlar = []
     for s in ar: satirlar.append((y, s, fa, ARAPCA, True)); y += ALH
     if ar: y += int(24 * O)
     for s in tr: satirlar.append((y, s, f, KREM, False)); y += LH
     satirlar.append((y + int(14 * O), kaynak, fs, ALTIN, False))
     selam_y = y + int(68 * O)
-    ust, alt = satirlar[0][0] - int(40 * O), selam_y + int((SELAM_H + 30) * O)
+    ust, alt = satirlar[0][0] - int(40 * O), (selam_y + int((SELAM_H + 30) * O)) if selam else y + int(80 * O)
     isik = ImageStat.Stat(img.convert('L').crop((60, max(0, ust), W - 60, min(H, alt)))).mean[0]
     koyu = int(60 + 130 * min(1, max(0, (isik - 60) / 110)))
     c = img.convert('RGBA')
@@ -122,7 +125,7 @@ def kart(img, metin, kaynak, cikti, arapca=''):
     sh = Image.new('RGBA', (W, H), (0, 0, 0, 255))
     sh.putalpha(tl.split()[3].filter(ImageFilter.GaussianBlur(8)).point(lambda v: int(v * .8)))
     c.alpha_composite(sh, (0, 4)); c.alpha_composite(tl)
-    lg = Image.open(f'{KOK}/logo.webp').convert('RGBA'); lg.thumbnail((int(110 * O), int(110 * O)))
+    lg = Image.open(f'{KOK}/logo.webp').convert('RGBA'); lg.thumbnail((int(132 * O), int(132 * O)))
     c.alpha_composite(lg, (W - lg.width - int(34 * O), H - int(44 * O) - lg.height))
     c.convert('RGB').save(cikti + '.jpg', quality=86, optimize=True, progressive=True)
     c.convert('RGB').resize((360, 640), Image.LANCZOS).save(cikti + '_k.jpg', quality=80)
@@ -154,6 +157,35 @@ def taslak(numaralar, pey_no):
     json.dump(liste, open('foto-taslak/liste.json', 'w'), ensure_ascii=False, indent=1)
 
 
+# Gazze bölümü: kullanıcının gönderdiği fotoğraflar (arac/gazze/NN.jpg) ve gazze.json'daki kaynaklı metinler.
+# Selam yazısı konmaz (bolum: gazze).
+GAZZE = [  # (fotoğraf, yatay odak, gazze.json'daki kaynaklar)
+    ('27', 0.48, ['Hadis-i Şerif · Buhârî, Zekât, 63', 'Hadis-i Şerif · Ebû Dâvûd, Vitr, 29', 'Hadis-i Şerif · Tirmizî, Sıfatü’l-kıyâme, 8']),
+    ('28', 0.5, ['Âl-i İmrân, 150', 'Rûm, 5', 'Neml, 79']),
+    ('29', 0.5, ['Hadis-i Şerif · Müslim, Birr, 62', 'İnşirâh, 5', 'Ahzâb, 3']),
+    ('30', 0.6, ['Bakara, 153', 'Nahl, 127', 'Meâric, 5']),
+    ('31', 0.55, ['Yûnus, 44', 'Nisâ, 45', 'Âl-i İmrân, 160']),
+]
+
+
+def gazze():
+    metin = {m['kaynak']: m for m in json.load(open(f'{KOK}/gazze.json'))}
+    onayli = [f for f in (json.load(open('fotolar.json')) if os.path.exists('fotolar.json') else []) if f.get('bolum') != 'gazze']
+    os.makedirs('fotolar', exist_ok=True)
+    yeni = []
+    for foto, odak, kaynaklar in GAZZE:
+        img = Image.open(f'{KOK}/gazze/{foto}.jpg').convert('RGB')
+        for i, k in enumerate(kaynaklar):
+            m = metin[k]
+            fid = f'g{foto}{i + 1}'
+            kart(img, m['metin'], m['kaynak'], f'fotolar/{fid}', m.get('arapca', ''), selam=False, odak=odak)
+            yeni.append({'id': fid, 'resim': f'fotolar/{fid}.jpg', 'kapak': f'fotolar/{fid}_k.jpg', 'tur': m['tur'],
+                         'metin': m['metin'], 'kaynak': m['kaynak'], 'pixabay': 0, 'lisans': 'kullanıcı', 'selam_y': 0,
+                         'bolum': 'gazze', 'konu': 'gazze', 'eklendi': time.strftime('%Y-%m-%d')})
+            print(fid, k)
+    json.dump(onayli + yeni, open('fotolar.json', 'w'), ensure_ascii=False, indent=1)
+
+
 def onay(numaralar):
     secim = {int(x) for x in numaralar.replace(' ', '').split(',') if x}
     onayli = json.load(open('fotolar.json')) if os.path.exists('fotolar.json') else []
@@ -178,3 +210,5 @@ if __name__ == '__main__':
         taslak(sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else '')
     elif mod == 'onay':
         onay(sys.argv[2])
+    elif mod == 'gazze':
+        gazze()
