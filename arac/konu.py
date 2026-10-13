@@ -85,4 +85,10 @@ PEXELS = {
     '35170561': 'kabe', '35170552': 'kabe', '35155718': 'kabe', '35282058': 'kabe', '34872085': 'kabe',
     '35349323': 'kabe', '35155731': 'kabe', '35189255': 'kabe', '39902982': 'cami_dis', '28217912': 'cami_dis',
     '34753278': 'cami_dis', '31135693': 'cami_dis', '31802396': 'cami_dis', '34017709': 'cami_dis', '32110800': 'cami_dis',
+    # 13 Ekim: namaz kılan / tesbih çeken kişiler, cami içleri, Kâbe ve Medine
+    '20347202': 'namaz', '31117989': 'namaz', '20752305': 'namaz', '8165554': 'namaz', '8165552': 'namaz',
+    '39701878': 'cami_ic', '10724507': 'cami_ic', '34632949': 'cami_ic', '36283681': 'cami_ic', '34547119': 'cami_ic',
+    '28746545': 'medine', '3687764': 'medine', '35266327': 'medine', '35155756': 'cami_dis', '37772800': 'cami_dis',
+    '35155730': 'kabe', '30985658': 'kabe', '35155732': 'kabe', '36973154': 'kabe', '38255864': 'kabe',
+    '36592376': 'kabe', '35189252': 'kabe', '30187680': 'kabe',
 }
