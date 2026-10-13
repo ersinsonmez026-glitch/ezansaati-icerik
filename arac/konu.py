@@ -18,15 +18,17 @@ ETIKET = [  # (konu, etiketlerde aranan kelimeler) — ilk eşleşen
     ('mum', ['candle', 'flame', 'fire']),
     ('gul', ['rose']),
     ('gece', ['moon', 'crescent', 'night', 'star', 'galaxy', 'milky']),
-    ('cicek', ['flower', 'tulip', 'blossom', 'petal', 'bloom', 'lily']),
+    ('cicek', ['flower', 'tulip', 'blossom', 'petal', 'bloom', 'lily', 'daisy', 'orchid', 'lavender']),
 ]
 
 
 def medya_konu(etiketler):
-    t = etiketler.lower()
-    for k, kelimeler in ETIKET:
-        if any(w in t for w in kelimeler):
-            return k
+    """Etiketler önem sırasıyla gelir (Pixabay): konuyu, bir konuya uyan İLK etiket belirler
+    (\"tulips, flowers, interior\" çiçektir; \"mosque, arabic\" camidir)."""
+    for e in [x.strip() for x in etiketler.lower().split(',') if x.strip()]:
+        for k, kelimeler in ETIKET:
+            if any(w in e for w in kelimeler):
+                return k
     return 'doga'
 
 
