@@ -292,6 +292,6 @@ if __name__ == '__main__':
         except subprocess.CalledProcessError as e:
             print('işlenemedi', v['sayfa'], e); n -= 1; continue
         liste.append({'no': n, 'pixabay': v['id'], 'sayfa': v['sayfa'], 'arama': v['arama'], 'dikey': v['dikey'],
-                      'kredi': v.get('kredi', ''), 'selam_y': sy, **m})
+                      'kredi': v.get('kredi', ''), 'selam_y': sy, 'selam_t': pro.katman.selam_t, **m})
         print(n, v['sayfa'], m['kaynak'])
     json.dump(liste, open('taslak/liste.json', 'w'), ensure_ascii=False, indent=1)

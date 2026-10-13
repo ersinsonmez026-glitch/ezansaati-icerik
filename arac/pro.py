@@ -167,6 +167,7 @@ def katman(metin, kaynak, cikti, arapca='', hat=False):
         '-movflags', '+faststart', cikti + '.mp4'], check=True)
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-ss', f'{son + 1:.2f}', '-i', cikti + '.mp4',
         '-frames:v', '1', '-vf', 'scale=360:-2', '-q:v', '4', cikti + '.jpg'], check=True)
+    katman.selam_t = round(son + 0.4, 2)          # selam yazısı yazı bitince görünür (sn)
     return round(selam_y / H, 4)
 
 
@@ -193,7 +194,7 @@ if __name__ == '__main__':
             v = next(x for x in onayli if x['id'] == i)
             m = kisa_metin(v, metinler, kullanilan); kullanilan.add(m['kaynak'])
             indir(v); sy = katman(m['metin'], m['kaynak'], f'taslak/{n:02d}', m.get('arapca', ''))
-            liste.append({'no': n, 'id': i, 'selam_y': sy, **m}); print(n, i, m['kaynak'], sy)
+            liste.append({'no': n, 'id': i, 'selam_y': sy, 'selam_t': katman.selam_t, **m}); print(n, i, m['kaynak'], sy)
         json.dump(liste, open('taslak/liste.json', 'w'), ensure_ascii=False, indent=1)
     elif mod == 'eslestir':
         # Konu eşleşmesi: her videonun konusu (Pexels: elle, Pixabay: etiket), metinler konuya göre yeniden dağıtılır
@@ -216,7 +217,7 @@ if __name__ == '__main__':
                 indir(v); sy = katman(m['metin'], m['kaynak'], v['video'][:-4], m.get('arapca', ''), hat=v['konu'] == 'hat')
             except Exception as e:
                 print('yenilenemedi', v['id'], e); continue
-            v.update(metin=m['metin'], kaynak=m['kaynak'], tur=m['tur'], selam_y=sy)
+            v.update(metin=m['metin'], kaynak=m['kaynak'], tur=m['tur'], selam_y=sy, selam_t=katman.selam_t)
             print('eşleşti', v['id'], v['konu'], m['kaynak'])
             json.dump(onayli, open('videolar.json', 'w'), ensure_ascii=False, indent=1)
         onayli.sort(key=lambda x: konu.SIRA.get(x.get('konu'), 9))
@@ -228,5 +229,5 @@ if __name__ == '__main__':
                 indir(v); sy = katman(m['metin'], m['kaynak'], v['video'][:-4], m.get('arapca', ''))
             except Exception as e:
                 print('yenilenemedi', v['id'], e); continue
-            v.update(metin=m['metin'], kaynak=m['kaynak'], tur=m['tur'], selam_y=sy); print('yenilendi', v['id'], m['kaynak'])
+            v.update(metin=m['metin'], kaynak=m['kaynak'], tur=m['tur'], selam_y=sy, selam_t=katman.selam_t); print('yenilendi', v['id'], m['kaynak'])
         json.dump(onayli, open('videolar.json', 'w'), ensure_ascii=False, indent=1)

@@ -11,6 +11,6 @@ for t in liste:
     shutil.copy(f"taslak/{t['no']:02d}.jpg", f'videolar/{vid}.jpg')
     onayli.insert(0, {'id': vid, 'video': f'videolar/{vid}.mp4', 'kapak': f'videolar/{vid}.jpg',
                       'tur': t['tur'], 'metin': t['metin'], 'kaynak': t['kaynak'],
-                      'pixabay': t['pixabay'], 'lisans': t['sayfa'], 'kredi': t.get('kredi', ''), 'selam_y': t.get('selam_y'), 'eklendi': time.strftime('%Y-%m-%d')})
+                      'pixabay': t['pixabay'], 'lisans': t['sayfa'], 'kredi': t.get('kredi', ''), 'selam_y': t.get('selam_y'), 'selam_t': t.get('selam_t'), 'eklendi': time.strftime('%Y-%m-%d')})
     print('onaylandı', vid, t['kaynak'])
 json.dump(onayli, open('videolar.json', 'w'), ensure_ascii=False, indent=1)
