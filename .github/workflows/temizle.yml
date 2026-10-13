@@ -1,0 +1,27 @@
+name: jsDelivr önbelleğini temizle
+
+# Yerinde yeniden üretilen videolar/fotoğraflar telefonlara eski hâliyle gitmesin diye jsDelivr önbelleği
+# listedeki tüm dosyalar için temizlenir (ücretsiz purge.jsdelivr.net).
+on:
+  workflow_dispatch:
+
+jobs:
+  temizle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 - <<'PY'
+          import json, urllib.request, concurrent.futures as cf, collections
+          yol = ['videolar.json', 'fotolar.json']
+          yol += [x for v in json.load(open('videolar.json')) for x in (v['video'], v['kapak'])]
+          yol += [x for f in json.load(open('fotolar.json')) for x in (f['resim'], f['kapak'])]
+          def p(y):
+              u = f'https://purge.jsdelivr.net/gh/${{ github.repository }}@main/{y}'
+              try:
+                  return json.load(urllib.request.urlopen(u, timeout=60)).get('status', '?')
+              except Exception as e:
+                  return type(e).__name__
+          with cf.ThreadPoolExecutor(6) as ex:
+              print(len(yol), collections.Counter(ex.map(p, yol)))
+          PY
