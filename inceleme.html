@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Kütüphane İnceleme</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:wght@600;700&family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+/* Düzen: üstte sabit çubuk (sekme + sayaç + kopyala), altında kapak ızgarası; dokununca tam ekran oynatıcı. */
+:root {
+  --zemin: #f4f1e8; --kagit: #ffffff; --murekkep: #1c2a22; --soluk: #5d6b62;
+  --yesil: #0d4630; --altin: #b8892e; --kirmizi: #b3261e; --cizgi: #ddd6c4;
+  --baslik: "Lora", Georgia, serif; --govde: "Source Sans 3", system-ui, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root {
+  --zemin: #0b1611; --kagit: #12211a; --murekkep: #ece4cf; --soluk: #9fae9f;
+  --yesil: #3f9b72; --altin: #e0b45a; --kirmizi: #ef6a5f; --cizgi: #24362c; color-scheme: dark; } }
+* { box-sizing: border-box }
+body { margin: 0; background: var(--zemin); color: var(--murekkep); font: 15px/1.45 var(--govde) }
+header { position: sticky; top: 0; z-index: 5; background: var(--yesil); color: #f3e8cc;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px; display: grid; gap: 8px }
+h1 { font: 700 19px var(--baslik); margin: 0; text-wrap: balance }
+.satir { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+.sekme { border: 1px solid #f3e8cc66; background: transparent; color: inherit; border-radius: 999px;
+  padding: 6px 14px; font: 600 14px var(--govde); cursor: pointer }
+.sekme[aria-pressed="true"] { background: var(--altin); border-color: var(--altin); color: #1b1305 }
+.sayac { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 700 }
+.kopya { background: #f3e8cc; color: var(--yesil); border: 0; border-radius: 10px; padding: 7px 12px; font: 700 14px var(--govde); cursor: pointer }
+.kopya:disabled { opacity: .45; cursor: default }
+main { padding: 12px 16px 40px }
+.not { color: var(--soluk); margin: 0 0 12px; font-size: 14px; max-width: 65ch }
+.izgara { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px }
+.kart { position: relative; border-radius: 10px; overflow: hidden; background: var(--kagit); border: 2px solid transparent; cursor: pointer }
+.kart img { display: block; width: 100%; aspect-ratio: 9/16; object-fit: cover; background: var(--cizgi) }
+.kart .no { position: absolute; left: 6px; top: 6px; background: #000a; color: #fff; font: 700 12px var(--govde); padding: 2px 7px; border-radius: 6px }
+.kart .tur { position: absolute; right: 6px; top: 6px; background: #000a; color: #fff; font-size: 12px; padding: 2px 7px; border-radius: 6px }
+.kart.sil { border-color: var(--kirmizi) }
+.kart.sil img { opacity: .35 }
+.kart.sil::after { content: "SİLİNECEK"; position: absolute; inset: auto 0 40% 0; text-align: center;
+  color: #fff; background: var(--kirmizi); font: 700 13px var(--govde); letter-spacing: .08em; padding: 4px 0 }
+.kart .kaynak { padding: 6px 8px; font-size: 12px; color: var(--soluk); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+dialog { border: 0; padding: 0; background: #000; color: #fff; width: min(440px, 100vw); max-height: 100dvh; border-radius: 14px }
+dialog::backdrop { background: #000c }
+.tam { display: grid; gap: 10px; padding: 12px }
+.tam video, .tam img { width: 100%; max-height: 70dvh; object-fit: contain; border-radius: 10px; background: #111 }
+.tam p { margin: 0; font-size: 14px; color: #e8dfc7 }
+.dugmeler { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px }
+.dugmeler button { border: 0; border-radius: 10px; padding: 12px 6px; font: 700 15px var(--govde); cursor: pointer }
+.geri, .ileri { background: #2a2a2a; color: #fff }
+.silbtn { background: var(--kirmizi); color: #fff }
+.silbtn.kaldir { background: #2f6f4f }
+button:focus-visible { outline: 3px solid var(--altin); outline-offset: 2px }
+.cikti { width: 100%; min-height: 80px; margin-top: 10px; font: 13px ui-monospace, monospace; display: none }
+</style>
+</head>
+<body>
+<header>
+  <h1>Mesaj kütüphanesi · inceleme</h1>
+  <div class="satir">
+    <button class="sekme" id="sVideo" aria-pressed="true">Videolar</button>
+    <button class="sekme" id="sFoto" aria-pressed="false">Fotoğraflar</button>
+    <span class="sayac" id="sayac">0 silinecek</span>
+    <button class="kopya" id="kopya" disabled>Listeyi kopyala</button>
+  </div>
+  <textarea class="cikti" id="cikti" readonly aria-label="Silinecekler listesi"></textarea>
+</header>
+<main>
+  <p class="not">Bir karta dokununca büyük açılır; videolar oynar. Beğenmediklerinde “Sil” de. Bitince “Listeyi kopyala”ya dokun ve listeyi bana gönder; ben silerim. Seçimlerin bu telefonda saklanır, sayfayı kapatsan da kaybolmaz.</p>
+  <div class="izgara" id="izgara">Yükleniyor…</div>
+</main>
+<dialog id="pencere">
+  <div class="tam">
+    <div id="medya"></div>
+    <p id="metin"></p>
+    <div class="dugmeler">
+      <button class="geri" id="geri">‹ Önceki</button>
+      <button class="silbtn" id="silbtn">Sil</button>
+      <button class="ileri" id="ileri">Sonraki ›</button>
+    </div>
+    <button class="geri" id="kapat">Kapat</button>
+  </div>
+</dialog>
+<script>
+const ANAHTAR = 'ezansaati-inceleme-sil';
+let sil = new Set();
+try { sil = new Set(JSON.parse(localStorage.getItem(ANAHTAR) || '[]')); } catch (e) {}
+const kaydet = () => { try { localStorage.setItem(ANAHTAR, JSON.stringify([...sil])); } catch (e) {} };
+let video = [], foto = [], tur = 'video', liste = [], acik = -1;
+const $ = (id) => document.getElementById(id);
+
+function sayac() {
+  $('sayac').textContent = `${sil.size} silinecek`;
+  $('kopya').disabled = sil.size === 0;
+}
+function ciz() {
+  liste = tur === 'video' ? video : foto;
+  const iz = $('izgara');
+  iz.innerHTML = '';
+  liste.forEach((x, i) => {
+    const k = document.createElement('div');
+    k.className = 'kart' + (sil.has(x.id) ? ' sil' : '');
+    k.innerHTML = `<img loading="lazy" alt="" src="${x.kapak}"><span class="no">${i + 1}</span>` +
+      `${x.video ? '<span class="tur">▶</span>' : ''}<div class="kaynak">${x.kaynak}</div>`;
+    k.onclick = () => ac(i);
+    iz.appendChild(k);
+  });
+  sayac();
+}
+function ac(i) {
+  acik = (i + liste.length) % liste.length;
+  const x = liste[acik];
+  $('medya').innerHTML = x.video
+    ? `<video src="${x.video}" poster="${x.kapak}" autoplay muted loop playsinline controls></video>`
+    : `<img alt="" src="${x.resim}">`;
+  $('metin').textContent = `${acik + 1}. ${x.metin} (${x.kaynak})`;
+  const s = sil.has(x.id);
+  $('silbtn').textContent = s ? 'Silme' : 'Sil';
+  $('silbtn').classList.toggle('kaldir', s);
+  if (!$('pencere').open) $('pencere').showModal();
+}
+$('silbtn').onclick = () => {
+  const x = liste[acik];
+  sil.has(x.id) ? sil.delete(x.id) : sil.add(x.id);
+  kaydet(); ciz(); ac(acik);
+};
+$('geri').onclick = () => ac(acik - 1);
+$('ileri').onclick = () => ac(acik + 1);
+$('kapat').onclick = () => { $('medya').innerHTML = ''; $('pencere').close(); };
+$('pencere').addEventListener('close', () => { $('medya').innerHTML = ''; });
+for (const [b, t] of [['sVideo', 'video'], ['sFoto', 'foto']]) {
+  $(b).onclick = () => {
+    tur = t;
+    $('sVideo').setAttribute('aria-pressed', t === 'video');
+    $('sFoto').setAttribute('aria-pressed', t === 'foto');
+    ciz();
+  };
+}
+$('kopya').onclick = async () => {
+  const metin = 'SİL: ' + [...sil].join(', ');
+  const c = $('cikti');
+  c.value = metin; c.style.display = 'block';
+  try { await navigator.clipboard.writeText(metin); $('kopya').textContent = 'Kopyalandı'; }
+  catch (e) { c.select(); $('kopya').textContent = 'Seçip kopyala'; }
+};
+Promise.all([fetch('videolar.json').then(r => r.json()), fetch('fotolar.json').then(r => r.json())])
+  .then(([v, f]) => {
+    video = v.map(x => ({ ...x, video: x.video }));
+    foto = f.map(x => ({ ...x, video: null }));
+    ciz();
+  })
+  .catch(() => { $('izgara').textContent = 'Liste yüklenemedi. İnternet bağlantını kontrol edip sayfayı yenile.'; });
+</script>
+</body>
+</html>
