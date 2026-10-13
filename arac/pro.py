@@ -163,7 +163,7 @@ def katman(metin, kaynak, cikti, arapca='', hat=False):
         f'[3]format=rgba,fade=in:st={bant_bas:.2f}:d={bant_sure:.2f}:alpha=1[bt];[bg][bt]overlay=shortest=1[b0];'
         '[b0][1]overlay[b1];[2]format=rgba[t];[b1][t]overlay=eof_action=repeat,'
         f'fade=in:st=0:d=1,fade=out:st={sure-1:.2f}:d=1,format=yuv420p[v]',
-        '-map', '[v]', '-an', '-t', f'{sure:.2f}', '-c:v', 'libx264', '-preset', 'slow', '-crf', '24',
+        '-map', '[v]', '-an', '-t', f'{sure:.2f}', '-c:v', 'libx264', '-preset', 'slow', '-crf', '24', '-maxrate', '1400k', '-bufsize', '2800k',
         '-movflags', '+faststart', cikti + '.mp4'], check=True)
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-ss', f'{son + 1:.2f}', '-i', cikti + '.mp4',
         '-frames:v', '1', '-vf', 'scale=360:-2', '-q:v', '4', cikti + '.jpg'], check=True)

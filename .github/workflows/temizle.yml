@@ -1,7 +1,7 @@
 name: jsDelivr önbelleğini temizle
 
 # Yerinde yeniden üretilen videolar/fotoğraflar telefonlara eski hâliyle gitmesin diye jsDelivr önbelleği
-# listedeki tüm dosyalar için temizlenir (ücretsiz purge.jsdelivr.net).
+# listedeki tüm dosyalar için temizlenir (ücretsiz purge.jsdelivr.net), sonra her dosya bir kez indirilip önbellek ısıtılır.
 on:
   workflow_dispatch:
 
@@ -24,4 +24,13 @@ jobs:
                   return type(e).__name__
           with cf.ThreadPoolExecutor(6) as ex:
               print(len(yol), collections.Counter(ex.map(p, yol)))
+          # Isıtma: her dosya bir kez indirilir, ilk izleyen kullanıcı GitHub'dan çekilmesini beklemesin
+          import time; time.sleep(30)
+          def isit(y):
+              try:
+                  return len(urllib.request.urlopen(f'https://cdn.jsdelivr.net/gh/${{ github.repository }}@main/{y}', timeout=120).read()) > 0
+              except Exception as e:
+                  return type(e).__name__
+          with cf.ThreadPoolExecutor(8) as ex:
+              print('ısıtma', collections.Counter(ex.map(isit, yol)))
           PY
