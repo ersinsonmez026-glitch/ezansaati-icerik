@@ -1,0 +1,14 @@
+name: jsDelivr teşhis
+on:
+  workflow_dispatch:
+  push:
+    paths: [.github/workflows/teshis.yml]
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for y in fotolar/g27_k.jpg videolar.json fotolar.json videolar/vpexels-30187680.jpg; do
+            echo "== $y"; curl -s -o /tmp/o -w '%{http_code} %{size_download}\n' "https://cdn.jsdelivr.net/gh/${{ github.repository }}@main/$y"; head -c 300 /tmp/o | strings | head -5
+          done
+          echo "== data.jsdelivr"; curl -s "https://data.jsdelivr.com/v1/packages/gh/${{ github.repository }}@main?structure=flat" | head -c 400
