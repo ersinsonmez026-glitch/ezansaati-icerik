@@ -2,7 +2,7 @@ name: Ses adayı ara
 on:
   workflow_dispatch:
   push:
-    paths: [.github/workflows/ses-ara.yml, arac/ses_ara.py]
+    paths: [.github/workflows/ses-ara.yml, arac/ses_ara.py, arac/ses_detay.py]
 permissions:
   contents: write
 jobs:
@@ -10,8 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: python3 arac/ses_ara.py
+      - run: python3 arac/ses_detay.py
       - run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
-          git add ses_adaylar.json && git commit -m "Ses adayları" && git pull -q --rebase && git push
+          git add ses_detay.json && git commit -m "Ses ayrıntı" && git pull -q --rebase && git push
