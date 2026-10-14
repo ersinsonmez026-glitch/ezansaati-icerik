@@ -24,7 +24,7 @@
   "tur": "ayet",
   "metin": "Sevdiğiniz şeylerden infak etmedikçe iyiliğe asla erişemezsiniz. Her ne harcarsanız Allah onu hakkıyla bilir.",
   "kaynak": "Âl-i İmrân, 92",
-  "arapca": "",
+  "arapca": "لَن تَنَالُوا۟ ٱلْبِرَّ حَتَّىٰ تُنفِقُوا۟ مِمَّا تُحِبُّونَ وَمَا تُنفِقُوا۟ مِن شَىْءٍ فَإِنَّ ٱللَّهَ بِهِۦ عَلِيمٌ",
   "bolum": "Günlük"
  },
  {
@@ -129,7 +129,7 @@
   "tur": "ayet",
   "metin": "Şüphesiz Allah ve melekleri Nebi’ye salat ederler. Ey Müminler siz de ona salat ve selam edin.",
   "kaynak": "Ahzâb, 56",
-  "arapca": "",
+  "arapca": "إِنَّ ٱللَّهَ وَمَلَٰٓئِكَتَهُۥ يُصَلُّونَ عَلَى ٱلنَّبِىِّ يَٰٓأَيُّهَا ٱلَّذِينَ ءَامَنُوا۟ صَلُّوا۟ عَلَيْهِ وَسَلِّمُوا۟ تَسْلِيمًا",
   "bolum": "Günlük"
  },
  {
@@ -318,7 +318,7 @@
   "tur": "ayet",
   "metin": "Ey iman edenler! Allah’tan gerektiği gibi sakının ve yalnızca Müslümanlar olarak can verin.",
   "kaynak": "Âl-i İmrân, 102",
-  "arapca": "",
+  "arapca": "يَٰٓأَيُّهَا ٱلَّذِينَ ءَامَنُوا۟ ٱتَّقُوا۟ ٱللَّهَ حَقَّ تُقَاتِهِۦ وَلَا تَمُوتُنَّ إِلَّا وَأَنتُم مُّسْلِمُونَ",
   "bolum": "Günlük"
  },
  {
@@ -444,7 +444,7 @@
   "tur": "ayet",
   "metin": "Göklerde ve yerde olan tüm canlılar ve melekler hiç büyüklenmeden Allah’a secde ederler.",
   "kaynak": "Nahl, 49",
-  "arapca": "",
+  "arapca": "وَلِلَّهِ يَسْجُدُ مَا فِى ٱلسَّمَٰوَٰتِ وَمَا فِى ٱلْأَرْضِ مِن دَآبَّةٍ وَٱلْمَلَٰٓئِكَةُ وَهُمْ لَا يَسْتَكْبِرُونَ",
   "bolum": "Cuma"
  },
  {
@@ -479,7 +479,7 @@
   "tur": "ayet",
   "metin": "Ey iman edenler! Rüku edin, secde edin, Rabbinize ibadet edin, hayır işleyin ki kurtuluşa eresiniz.",
   "kaynak": "Hac, 77",
-  "arapca": "",
+  "arapca": "يَٰٓأَيُّهَا ٱلَّذِينَ ءَامَنُوا۟ ٱرْكَعُوا۟ وَٱسْجُدُوا۟ وَٱعْبُدُوا۟ رَبَّكُمْ وَٱفْعَلُوا۟ ٱلْخَيْرَ لَعَلَّكُمْ تُفْلِحُونَ",
   "bolum": "Cuma"
  },
  {
@@ -843,7 +843,7 @@
   "tur": "ayet",
   "metin": "Rabbinizin mağfiretine ve takva sahipleri için hazırlanmış, eni gökler ve yer kadar olan cennete koşuşun!",
   "kaynak": "Âl-i İmrân, 133",
-  "arapca": "",
+  "arapca": "وَسَارِعُوٓا۟ إِلَىٰ مَغْفِرَةٍ مِّن رَّبِّكُمْ وَجَنَّةٍ عَرْضُهَا ٱلسَّمَٰوَٰتُ وَٱلْأَرْضُ أُعِدَّتْ لِلْمُتَّقِينَ",
   "bolum": "Günlük"
  },
  {
@@ -969,7 +969,7 @@
   "tur": "ayet",
   "metin": "Denizde lütfunu arayasınız diye gemileri sizin için yürüten Rabbinizdir. Çünkü O, size çok merhamet eder.",
   "kaynak": "İsrâ, 66",
-  "arapca": "",
+  "arapca": "رَّبُّكُمُ ٱلَّذِى يُزْجِى لَكُمُ ٱلْفُلْكَ فِى ٱلْبَحْرِ لِتَبْتَغُوا۟ مِن فَضْلِهِۦٓ إِنَّهُۥ كَانَ بِكُمْ رَحِيمًا",
   "bolum": "Günlük"
  },
  {
@@ -1088,7 +1088,7 @@
   "tur": "ayet",
   "metin": "Göklerdeki ve yerdeki her şeyin sahibi olan Allah’ın yoluna. İyi bilin ki, bütün işler sonunda Allah’a döner.",
   "kaynak": "Şûrâ, 53",
-  "arapca": "",
+  "arapca": "صِرَٰطِ ٱللَّهِ ٱلَّذِى لَهُۥ مَا فِى ٱلسَّمَٰوَٰتِ وَمَا فِى ٱلْأَرْضِ أَلَآ إِلَى ٱللَّهِ تَصِيرُ ٱلْأُمُورُ",
   "bolum": "Günlük"
  },
  {
@@ -1368,7 +1368,7 @@
   "tur": "ayet",
   "metin": "Göklerde ve yerde kim varsa Allah'ındır. O’nun katındakiler, O'na ibadet hususunda kibirlenmez ve yorulmazlar.",
   "kaynak": "Enbiyâ, 19",
-  "arapca": "",
+  "arapca": "وَلَهُۥ مَن فِى ٱلسَّمَٰوَٰتِ وَٱلْأَرْضِ وَمَنْ عِندَهُۥ لَا يَسْتَكْبِرُونَ عَنْ عِبَادَتِهِۦ وَلَا يَسْتَحْسِرُونَ",
   "bolum": "Günlük"
  },
  {
