@@ -2,7 +2,10 @@
 yavaş yakınlaşma, yazının arkasında parlaklığa göre koyulaşan bant, sabit 13 sn ve aynı açılış/kapanış.
 Kullanım:
   python3 arac/pro.py ornek <video kimlikleri, virgülle>   -> taslak/NN.mp4 (önizleme, uygulamaya girmez)
-  python3 arac/pro.py hepsi                                 -> onaylı videoları yerinde yeniden üretir"""
+  python3 arac/pro.py hepsi                                 -> onaylı videoları yerinde yeniden üretir
+  python3 arac/pro.py ses                                   -> metinleri değiştirmeden sesli yeniden üretir
+Ses: ayet videolarında o ayetin tilaveti (Mâhir el-Muaykılî, Islamic Network CDN); hadis videolarında arac/ses/
+klasöründeki izinli ezgi/vokal kayıtlarından biri (kaynak ve lisans arac/ses/kaynak.json'da). Klasör boşsa sessiz."""
 import json, os, random, subprocess, sys, urllib.parse, urllib.request
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
@@ -79,7 +82,61 @@ def bos_yer(yukseklik):
     return en_y
 
 
-def katman(metin, kaynak, cikti, arapca='', hat=False):
+
+def _ses_filtre(ses, sure):
+    """Ses zinciri (girdi 4): tilavet ayetin Arapçası belirirken başlar; ezgi baştan, kısık. İkisi de sonda kısılır."""
+    if not ses:
+        return ''
+    yol, bas, uz, tur = ses
+    if tur == 'tilavet':
+        ms = int(bas * 1000)
+        return (f';[4]aresample=44100,adelay={ms}|{ms},afade=t=in:st={bas:.2f}:d=0.2,'
+                f'afade=t=out:st={sure - 1.2:.2f}:d=1.2,apad,atrim=0:{sure:.2f}[a]')
+    return (f';[4]aresample=44100,atrim=0:{sure:.2f},volume=0.55,afade=t=in:d=1.2,'
+            f'afade=t=out:st={sure - 1.8:.2f}:d=1.8,apad,atrim=0:{sure:.2f}[a]')
+
+
+SURELER = json.load(open(os.path.join(KOK, 'sureler.json')))   # [ad, ayet sayısı] (Hafs, Tanzil)
+KARI = 'ar.mahermuaiqly'
+
+
+def _sure_ayet(kaynak):
+    """"Bakara, 152" -> (2, 152); bulunamazsa None."""
+    try:
+        ad, no = [x.strip() for x in kaynak.split(',', 1)]
+        s = next(i for i, x in enumerate(SURELER, 1) if x[0] == ad)
+        a = int(no.split('-')[0])
+        return (s, a) if 1 <= a <= SURELER[s - 1][1] else None
+    except (StopIteration, ValueError):
+        return None
+
+
+def _sure_uzunlugu(yol):
+    return float(subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', yol],
+                                capture_output=True, text=True, check=True).stdout.strip())
+
+
+def ses_sec(v):
+    """Videonun sesi: ayette tilavet (Kur'an genelindeki ayet numarasıyla tek dosya), hadiste ezgi. Yoksa None."""
+    if v.get('tur') == 'ayet':
+        sa = _sure_ayet(v['kaynak'])
+        if not sa:
+            return None
+        g = sum(x[1] for x in SURELER[:sa[0] - 1]) + sa[1]
+        yol = f'/tmp/tilavet-{g}.mp3'
+        if not os.path.exists(yol):
+            url = f'https://cdn.islamic.network/quran/audio/128/{KARI}/{g}.mp3'
+            open(yol, 'wb').write(urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=120).read())
+        return (yol, 0.8, _sure_uzunlugu(yol), 'tilavet')
+    klasor = os.path.join(KOK, 'ses')
+    parcalar = sorted(f for f in os.listdir(klasor) if f.endswith(('.mp3', '.m4a', '.ogg'))) if os.path.isdir(klasor) else []
+    if not parcalar:
+        return None
+    yol = os.path.join(klasor, parcalar[sum(map(ord, v['id'])) % len(parcalar)])
+    return (yol, 0.0, _sure_uzunlugu(yol), 'ezgi')
+
+def katman(metin, kaynak, cikti, arapca='', hat=False, ses=None):
+    """ses: (dosya, başlangıç sn, süre sn, tür 'tilavet'|'ezgi') ya da None (sessiz)."""
     d = ImageDraw.Draw(Image.new('RGBA', (W, H)))
     f = ImageFont.truetype(f'{KOK}/yazi/Lora-Medium.ttf', 44)
     fs = ImageFont.truetype(f'{KOK}/yazi/Lora-Bold.ttf', 26)
@@ -100,6 +157,8 @@ def katman(metin, kaynak, cikti, arapca='', hat=False):
     yer.append((t + 0.3, y + 14, kaynak, fs, ALTIN, False, False))
     son = t + 0.3 + 0.9
     sure = max(SURE, son + 4.0)
+    if ses and ses[3] == 'tilavet':
+        sure = max(sure, ses[1] + ses[2] + 1.6)   # tilavet yarıda kesilmez: video gerektiği kadar uzar
     selam_y = y + 68                             # uygulama selam yazısını buraya çizer (ayetin hemen altı)
     ust, alt = yer[0][1] - 40, selam_y + SELAM_H + 30   # bant selam yazısını da kapsar
 
@@ -157,14 +216,14 @@ def katman(metin, kaynak, cikti, arapca='', hat=False):
     z = f'(1+{ZOOM}*t/{sure:.2f})'
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-stream_loop', '-1', '-i', '/tmp/kaynak.mp4',
         '-loop', '1', '-i', '/tmp/kar.png', '-framerate', str(FPS_YAZI), '-i', '/tmp/yz/%04d.png',
-        '-loop', '1', '-i', '/tmp/bant.png', '-filter_complex',
+        '-loop', '1', '-i', '/tmp/bant.png', *(['-i', ses[0]] if ses else []), '-filter_complex',
         f'[0]scale={W*2}:{H*2}:force_original_aspect_ratio=increase,crop={W*2}:{H*2},fps=30,'
         f"scale=w='2*trunc({W*2}*{z}/2)':h='2*trunc({H*2}*{z}/2)':eval=frame,crop={W*2}:{H*2},"
         f'scale={W}:{H}:flags=lanczos,{RENK},format=yuv420p[bg];'
         f'[3]format=rgba,fade=in:st={bant_bas:.2f}:d={bant_sure:.2f}:alpha=1[bt];[bg][bt]overlay=shortest=1[b0];'
         '[b0][1]overlay[b1];[2]format=rgba[t];[b1][t]overlay=eof_action=repeat,'
-        f'fade=in:st=0:d=1,fade=out:st={sure-1:.2f}:d=1,format=yuv420p[v]',
-        '-map', '[v]', '-an', '-t', f'{sure:.2f}', '-c:v', 'libx264', '-preset', 'slow', '-crf', '24', '-maxrate', '1400k', '-bufsize', '2800k',
+        f'fade=in:st=0:d=1,fade=out:st={sure-1:.2f}:d=1,format=yuv420p[v]' + _ses_filtre(ses, sure),
+        '-map', '[v]', *(['-map', '[a]', '-c:a', 'aac', '-b:a', '96k'] if ses else ['-an']), '-t', f'{sure:.2f}', '-c:v', 'libx264', '-preset', 'slow', '-crf', '24', '-maxrate', '1400k', '-bufsize', '2800k',
         '-movflags', '+faststart', cikti + '.mp4'], check=True)
     subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-ss', f'{son + 1:.2f}', '-i', cikti + '.mp4',
         '-frames:v', '1', '-vf', 'scale=360:-2', '-q:v', '4', cikti + '.jpg'], check=True)
@@ -194,7 +253,7 @@ if __name__ == '__main__':
         for n, i in enumerate(ids, 1):
             v = next(x for x in onayli if x['id'] == i)
             m = kisa_metin(v, metinler, kullanilan); kullanilan.add(m['kaynak'])
-            indir(v); sy = katman(m['metin'], m['kaynak'], f'taslak/{n:02d}', m.get('arapca', ''))
+            ses = ses_sec({'id': v['id'], **m}); indir(v); sy = katman(m['metin'], m['kaynak'], f'taslak/{n:02d}', m.get('arapca', ''), ses=ses)
             liste.append({'no': n, 'id': i, 'selam_y': sy, 'selam_t': katman.selam_t, **m}); print(n, i, m['kaynak'], sy)
         json.dump(liste, open('taslak/liste.json', 'w'), ensure_ascii=False, indent=1)
     elif mod == 'eslestir':
@@ -215,20 +274,34 @@ if __name__ == '__main__':
                     print('etiket yok', k, e); v['konu'] = v.get('konu', 'doga')
         for v, m in konu.dagit(onayli, kisa):
             try:
-                indir(v); sy = katman(m['metin'], m['kaynak'], v['video'][:-4], m.get('arapca', ''), hat=v['konu'] == 'hat')
+                ses = ses_sec({'id': v['id'], **m}); indir(v); sy = katman(m['metin'], m['kaynak'], v['video'][:-4], m.get('arapca', ''), hat=v['konu'] == 'hat', ses=ses)
             except Exception as e:
                 print('yenilenemedi', v['id'], e); continue
-            v.update(metin=m['metin'], kaynak=m['kaynak'], tur=m['tur'], selam_y=sy, selam_t=katman.selam_t)
+            v.update(metin=m['metin'], kaynak=m['kaynak'], tur=m['tur'], selam_y=sy, selam_t=katman.selam_t, ses=(ses[3] if ses else ''))
             print('eşleşti', v['id'], v['konu'], m['kaynak'])
             json.dump(onayli, open('videolar.json', 'w'), ensure_ascii=False, indent=1)
         onayli.sort(key=lambda x: konu.SIRA.get(x.get('konu'), 9))
         json.dump(onayli, open('videolar.json', 'w'), ensure_ascii=False, indent=1)
+    elif mod == 'ses':
+        arapca = {m['kaynak']: m.get('arapca', '') for m in metinler}
+        for v in onayli:
+            try:
+                ses = ses_sec(v)
+                indir(v)
+                sy = katman(v['metin'], v['kaynak'], v['video'][:-4], arapca.get(v['kaynak'], ''),
+                            hat=v.get('konu') == 'hat', ses=ses)
+            except Exception as e:
+                print('yenilenemedi', v['id'], e); continue
+            v.update(selam_y=sy, selam_t=katman.selam_t, ses=(ses[3] if ses else ''),
+                     ses_dosya=(os.path.basename(ses[0]) if ses and ses[3] == 'ezgi' else ''))
+            print('sesli', v['id'], v['kaynak'], v['ses'])
+            json.dump(onayli, open('videolar.json', 'w'), ensure_ascii=False, indent=1)
     elif mod == 'hepsi':
         for v in onayli:
             m = kisa_metin(v, metinler, kullanilan); kullanilan.add(m['kaynak'])
             try:
-                indir(v); sy = katman(m['metin'], m['kaynak'], v['video'][:-4], m.get('arapca', ''))
+                ses = ses_sec({'id': v['id'], **m}); indir(v); sy = katman(m['metin'], m['kaynak'], v['video'][:-4], m.get('arapca', ''), ses=ses)
             except Exception as e:
                 print('yenilenemedi', v['id'], e); continue
-            v.update(metin=m['metin'], kaynak=m['kaynak'], tur=m['tur'], selam_y=sy, selam_t=katman.selam_t); print('yenilendi', v['id'], m['kaynak'])
+            v.update(metin=m['metin'], kaynak=m['kaynak'], tur=m['tur'], selam_y=sy, selam_t=katman.selam_t, ses=(ses[3] if ses else '')); print('yenilendi', v['id'], m['kaynak'])
         json.dump(onayli, open('videolar.json', 'w'), ensure_ascii=False, indent=1)
