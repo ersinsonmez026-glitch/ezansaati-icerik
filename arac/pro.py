@@ -127,7 +127,7 @@ def ses_sec(v):
         if not os.path.exists(yol):
             url = f'https://cdn.islamic.network/quran/audio/128/{KARI}/{g}.mp3'
             open(yol, 'wb').write(urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=120).read())
-        return (yol, 0.8, _sure_uzunlugu(yol), 'tilavet')
+        return (yol, 1.8, _sure_uzunlugu(yol), 'tilavet')   # Arapça yazı tam belirince
     klasor = os.path.join(KOK, 'ses')
     parcalar = sorted(f for f in os.listdir(klasor) if f.endswith(('.mp3', '.m4a', '.ogg'))) if os.path.isdir(klasor) else []
     if not parcalar:
