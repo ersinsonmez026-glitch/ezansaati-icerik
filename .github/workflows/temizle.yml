@@ -26,11 +26,18 @@ jobs:
               print(len(yol), collections.Counter(ex.map(p, yol)))
           # Isıtma: her dosya bir kez indirilir, ilk izleyen kullanıcı GitHub'dan çekilmesini beklemesin
           import time; time.sleep(30)
+          # Temizlemeden hemen sonra jsDelivr bir süre hata dönebiliyor (14 Ekim: 744 dosyanın 738'i): her dosya
+          # artan aralıklarla 6 kez denenir, aynı anda az istek gönderilir.
           def isit(y):
-              try:
-                  return len(urllib.request.urlopen(f'https://cdn.jsdelivr.net/gh/${{ github.repository }}@main/{y}', timeout=120).read()) > 0
-              except Exception as e:
-                  return type(e).__name__
-          with cf.ThreadPoolExecutor(8) as ex:
+              son = None
+              for bekle in (0, 20, 40, 60, 90, 120):
+                  time.sleep(bekle)
+                  try:
+                      if len(urllib.request.urlopen(f'https://cdn.jsdelivr.net/gh/${{ github.repository }}@main/{y}', timeout=120).read()) > 0:
+                          return True
+                  except Exception as e:
+                      son = type(e).__name__
+              return son
+          with cf.ThreadPoolExecutor(4) as ex:
               print('ısıtma', collections.Counter(ex.map(isit, yol)))
           PY
