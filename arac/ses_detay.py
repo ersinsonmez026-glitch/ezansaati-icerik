@@ -28,5 +28,5 @@ for v in json.load(open('videolar.json')):
         t = str(e)
     out.append({'id': v['id'], 'kaynak': v['kaynak'], 'g': g, 'bizim': v['metin'], 'vakfi': t,
                 'tilavet': sure(f'https://cdn.islamic.network/quran/audio/128/ar.mahermuaiqly/{g}.mp3'),
-                'meal_ses': sure(f'https://cdn.islamic.network/quran/audio/64/tr.vakfi-audio/{g}.mp3')})
+                'meal_ses': next((r for b in (192, 128, 64, 48, 40, 32) for r in [sure(f'https://cdn.islamic.network/quran/audio/{b}/tr.vakfi-audio/{g}.mp3')] if isinstance(r, float)), None)})
 json.dump(out, open('ses_detay.json', 'w'), ensure_ascii=False, indent=1)
