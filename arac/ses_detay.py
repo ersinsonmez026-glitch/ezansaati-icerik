@@ -1,17 +1,20 @@
-"""Internet Archive 'opensource_audio' koleksiyonunda ilahi araması: her öğenin lisansı, yükleyeni, açıklaması."""
-import json, re, urllib.parse, urllib.request
+"""Türkçe sesli meal kaynakları: alquran.cloud ses sürümleri, everyayah listesi, Piper Türkçe ses lisansları."""
+import json, urllib.request
 UA = {'User-Agent': 'EzanSaati/1.0 (ezansaatidestek@gmail.com)'}
-def get(u):
-    return json.load(urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=60))
-out = []
-for q in ['ilahi', 'ilahiler', 'müziksiz ilahi', 'çalgısız ilahi', 'ney', 'tasavvuf']:
-    u = 'https://archive.org/advancedsearch.php?' + urllib.parse.urlencode({
-        'q': f'({q}) AND collection:opensource_audio', 'fl[]': ['identifier', 'title', 'creator', 'licenseurl', 'rights', 'uploader', 'description', 'downloads'],
-        'rows': 500, 'output': 'json'}, doseq=True)
-    for d in get(u)['response']['docs']:
-        out.append({'ara': q, 'id': d['identifier'], 'baslik': d.get('title'), 'sanatci': d.get('creator'), 'lisans': d.get('licenseurl'),
-                    'hak': d.get('rights'), 'yukleyen': d.get('uploader'), 'indirme': d.get('downloads'),
-                    'aciklama': re.sub('<[^>]+>', '', str(d.get('description') or ''))[:300]})
-gor = set(); tek = [x for x in out if not (x['id'] in gor or gor.add(x['id']))]
-json.dump(tek, open('ses_detay.json', 'w'), ensure_ascii=False, indent=1)
-print(len(tek), sum(1 for x in tek if x['lisans']))
+def oku(u):
+    try:
+        return urllib.request.urlopen(urllib.request.Request(u, headers=UA), timeout=60).read().decode('utf-8', 'replace')
+    except Exception as e:
+        return f'HATA {e}'
+out = {}
+d = oku('https://api.alquran.cloud/v1/edition?format=audio')
+try:
+    out['alquran_ses'] = [e for e in json.loads(d)['data'] if e['language'] != 'ar']
+except Exception:
+    out['alquran_ses'] = d[:500]
+out['everyayah'] = [l for l in oku('https://everyayah.com/data/recitations.js').splitlines() if 'urk' in l or 'Turk' in l or 'tr' in l.lower()[:40]][:40]
+out['everyayah_ham'] = oku('https://everyayah.com/data/recitations.js')[:200]
+for v in ['dfki/medium', 'fahrettin/medium', 'fettah/medium']:
+    out['piper_' + v] = oku(f'https://huggingface.co/rhasspy/piper-voices/raw/main/tr/tr_TR/{v}/MODEL_CARD')[:1500]
+out['qurancom'] = oku('https://api.quran.com/api/v4/resources/recitations?language=tr')[:3000]
+json.dump(out, open('ses_detay.json', 'w'), ensure_ascii=False, indent=1)
