@@ -4,6 +4,8 @@ Kullanım:
   python3 arac/pro.py ornek <video kimlikleri, virgülle>   -> taslak/NN.mp4 (önizleme, uygulamaya girmez)
   python3 arac/pro.py hepsi                                 -> onaylı videoları yerinde yeniden üretir
   python3 arac/pro.py ses                                   -> metinleri değiştirmeden sesli yeniden üretir
+  python3 arac/pro.py meal                                  -> tilavetin ardından Türkçe sesli meal (Diyanet Vakfı)
+  python3 arac/pro.py mealornek <kimlikler>                 -> sesli meal önizlemesi (taslak dalı)
 Ses: ayet videolarında o ayetin tilaveti (Mâhir el-Muaykılî, Islamic Network CDN); hadis videolarında arac/ses/
 klasöründeki izinli ezgi/vokal kayıtlarından biri (kaynak ve lisans arac/ses/kaynak.json'da). Klasör boşsa sessiz."""
 import json, os, random, subprocess, sys, urllib.parse, urllib.request
@@ -98,6 +100,9 @@ def _ses_filtre(ses, sure):
 
 SURELER = json.load(open(os.path.join(KOK, 'sureler.json')))   # [ad, ayet sayısı] (Hafs, Tanzil)
 KARI = 'ar.mahermuaiqly'
+# Sesli meal: Diyanet Vakfı meali (Islamic Network, tr.vakfi-audio). Metni (tr.vakfi, Tanzil) yalnız tam cümle ve
+# kısa olan ayetlerde; videoda yazan meal okunanla aynı olsun diye bu videolarda yazı da Diyanet Vakfı mealidir.
+VAKFI = json.load(open(os.path.join(KOK, 'vakfi.json')))
 
 
 def _sure_ayet(kaynak):
@@ -127,6 +132,17 @@ def ses_sec(v):
         if not os.path.exists(yol):
             url = f'https://cdn.islamic.network/quran/audio/128/{KARI}/{g}.mp3'
             open(yol, 'wb').write(urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=120).read())
+        if v['kaynak'] in VAKFI and os.environ.get('SESLI_MEAL'):
+            meal = f'/tmp/meal-{g}.mp3'
+            if not os.path.exists(meal):
+                url = f'https://cdn.islamic.network/quran/audio/192/tr.vakfi-audio/{g}.mp3'
+                open(meal, 'wb').write(urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=120).read())
+            ikisi = f'/tmp/tilavet-meal-{g}.m4a'   # tilavet, 0,8 sn ara, Türkçe meal
+            subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', yol, '-i', meal, '-filter_complex',
+                            '[0]aresample=44100,aformat=channel_layouts=stereo[a];[1]aresample=44100,aformat=channel_layouts=stereo,'
+                            'adelay=800|800[b];[a][b]concat=n=2:v=0:a=1[o]', '-map', '[o]', '-c:a', 'aac', '-b:a', '128k', ikisi],
+                           check=True)
+            return (ikisi, 1.8, _sure_uzunlugu(ikisi), 'tilavet')
         return (yol, 1.8, _sure_uzunlugu(yol), 'tilavet')   # Arapça yazı tam belirince
     klasor = os.path.join(KOK, 'ses')
     parcalar = sorted(f for f in os.listdir(klasor) if f.endswith(('.mp3', '.m4a', '.ogg'))) if os.path.isdir(klasor) else []
@@ -295,6 +311,26 @@ if __name__ == '__main__':
             v.update(selam_y=sy, selam_t=katman.selam_t, ses=(ses[3] if ses else ''),
                      ses_dosya=(os.path.basename(ses[0]) if ses and ses[3] == 'ezgi' else ''))
             print('sesli', v['id'], v['kaynak'], v['ses'])
+            json.dump(onayli, open('videolar.json', 'w'), ensure_ascii=False, indent=1)
+    elif mod in ('meal', 'mealornek'):
+        # Sesli meal: tilavetin ardından Türkçe meal okunur; videodaki meal yazısı okunanla aynı (Diyanet Vakfı)
+        os.environ['SESLI_MEAL'] = '1'
+        arapca = {m['kaynak']: m.get('arapca', '') for m in metinler}
+        secili = sys.argv[2].replace(' ', '').split(',') if mod == 'mealornek' else None
+        if secili: os.makedirs('taslak', exist_ok=True)
+        for n, v in enumerate([x for x in onayli if not secili or x['id'] in secili], 1):
+            try:
+                metin = VAKFI.get(v['kaynak'], v['metin'])
+                ses = ses_sec(v)
+                indir(v)
+                cikti = f'taslak/{n:02d}' if secili else v['video'][:-4]
+                sy = katman(metin, v['kaynak'], cikti, arapca.get(v['kaynak'], ''), hat=v.get('konu') == 'hat', ses=ses)
+            except Exception as e:
+                print('yenilenemedi', v['id'], e); continue
+            if secili: print(n, v['id'], v['kaynak'], metin); continue
+            v.update(metin=metin, selam_y=sy, selam_t=katman.selam_t, ses='meal' if v['kaynak'] in VAKFI else 'tilavet',
+                     meal='Diyanet Vakfı' if v['kaynak'] in VAKFI else '')
+            print('sesli meal', v['id'], v['kaynak'], v['ses'])
             json.dump(onayli, open('videolar.json', 'w'), ensure_ascii=False, indent=1)
     elif mod == 'hepsi':
         for v in onayli:

@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       mod:
-        description: 'ornek, hepsi, eslestir ya da ses'
+        description: 'ornek, hepsi, eslestir, ses, meal ya da mealornek'
         default: 'ornek'
       kimlikler:
         description: 'ornek için video kimlikleri (virgülle)'
@@ -26,14 +26,14 @@ jobs:
       - run: python3 arac/pro.py "${{ inputs.mod }}" "${{ inputs.kimlikler }}"
         env:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
-      - if: inputs.mod == 'hepsi' || inputs.mod == 'eslestir' || inputs.mod == 'ses'
+      - if: inputs.mod == 'hepsi' || inputs.mod == 'eslestir' || inputs.mod == 'ses' || inputs.mod == 'meal'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
           git add videolar videolar.json
           git commit -m "Onaylı videolar profesyonel düzenle yenilendi"
           git pull -q --rebase; git push
-      - if: inputs.mod == 'ornek'
+      - if: inputs.mod == 'ornek' || inputs.mod == 'mealornek'
         run: |
           cp -r taslak /tmp/taslak
           git config user.name "github-actions[bot]"
