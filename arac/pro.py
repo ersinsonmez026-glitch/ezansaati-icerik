@@ -130,8 +130,13 @@ def ses_sec(v):
         g = sum(x[1] for x in SURELER[:sa[0] - 1]) + sa[1]
         yol = f'/tmp/tilavet-{KARI}-{g}.mp3'
         if not os.path.exists(yol):
-            url = f'https://cdn.islamic.network/quran/audio/128/{KARI}/{g}.mp3'
-            open(yol, 'wb').write(urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=120).read())
+            for b in (128, 192, 64, 48, 40, 32):   # kârîye göre sunulan kalite değişir
+                try:
+                    url = f'https://cdn.islamic.network/quran/audio/{b}/{KARI}/{g}.mp3'
+                    open(yol, 'wb').write(urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=120).read())
+                    break
+                except urllib.error.HTTPError:
+                    if b == 32: raise
         if v['kaynak'] in VAKFI and os.environ.get('SESLI_MEAL'):
             meal = f'/tmp/meal-{g}.mp3'
             if not os.path.exists(meal):
