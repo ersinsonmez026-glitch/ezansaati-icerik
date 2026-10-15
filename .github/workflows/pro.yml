@@ -12,6 +12,9 @@ on:
       kimlikler:
         description: 'ornek için video kimlikleri (virgülle)'
         default: ''
+      kari:
+        description: 'Kârî (boşsa ar.mahermuaiqly), ör. ar.minshawimujawwad'
+        default: ''
 
 permissions:
   contents: write
@@ -26,6 +29,7 @@ jobs:
       - run: python3 arac/pro.py "${{ inputs.mod }}" "${{ inputs.kimlikler }}"
         env:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          KARI: ${{ inputs.kari }}
       - if: inputs.mod == 'hepsi' || inputs.mod == 'eslestir' || inputs.mod == 'ses' || inputs.mod == 'meal'
         run: |
           git config user.name "github-actions[bot]"
@@ -43,4 +47,4 @@ jobs:
           rm -rf taslak && cp -r /tmp/taslak taslak
           git add taslak
           git commit -qm "Profesyonel örnek videolar"
-          git push -f origin taslak-dal:taslak
+          git push -f origin taslak-dal:taslak-${{ inputs.kari || 'maher' }}

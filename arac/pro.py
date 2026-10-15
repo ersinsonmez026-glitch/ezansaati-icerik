@@ -99,7 +99,7 @@ def _ses_filtre(ses, sure):
 
 
 SURELER = json.load(open(os.path.join(KOK, 'sureler.json')))   # [ad, ayet sayısı] (Hafs, Tanzil)
-KARI = 'ar.mahermuaiqly'
+KARI = os.environ.get('KARI') or 'ar.mahermuaiqly'   # örnek için başka kârî denenebilir (KARI=ar.minshawimujawwad)
 # Sesli meal: Diyanet Vakfı meali (Islamic Network, tr.vakfi-audio). Metni (tr.vakfi, Tanzil) yalnız tam cümle ve
 # kısa olan ayetlerde; videoda yazan meal okunanla aynı olsun diye bu videolarda yazı da Diyanet Vakfı mealidir.
 VAKFI = json.load(open(os.path.join(KOK, 'vakfi.json')))
@@ -128,7 +128,7 @@ def ses_sec(v):
         if not sa:
             return None
         g = sum(x[1] for x in SURELER[:sa[0] - 1]) + sa[1]
-        yol = f'/tmp/tilavet-{g}.mp3'
+        yol = f'/tmp/tilavet-{KARI}-{g}.mp3'
         if not os.path.exists(yol):
             url = f'https://cdn.islamic.network/quran/audio/128/{KARI}/{g}.mp3'
             open(yol, 'wb').write(urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=120).read())
