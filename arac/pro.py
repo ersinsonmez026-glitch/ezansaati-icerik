@@ -326,7 +326,10 @@ if __name__ == '__main__':
                             hat=v.get('konu') == 'hat', ses=ses)
             except Exception as e:
                 print('yenilenemedi', v['id'], e); continue
-            v.update(selam_y=sy, selam_t=katman.selam_t, ses=(ses[3] if ses else ''),
+            # Kârî değişince ses adı da değişir: uygulamadaki eski önbellek kullanılmaz
+            tur = (ses[3] if ses else '')
+            if tur == 'tilavet' and KARI != 'ar.mahermuaiqly': tur = 'tilavet_' + KARI.split('.')[-1]
+            v.update(selam_y=sy, selam_t=katman.selam_t, ses=tur,
                      ses_dosya=(os.path.basename(ses[0]) if ses and ses[3] == 'ezgi' else ''))
             print('sesli', v['id'], v['kaynak'], v['ses'])
             json.dump(onayli, open('videolar.json', 'w'), ensure_ascii=False, indent=1)
