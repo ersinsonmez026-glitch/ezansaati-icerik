@@ -1,32 +1,15 @@
-"""Her video için: Diyanet Vakfı meal metni (tr.vakfi), sesli meal ve tilavet süreleri."""
-import json, os, subprocess, urllib.request
-UA = {'User-Agent': 'EzanSaati/1.0 (ezansaatidestek@gmail.com)'}
-KOK = 'arac'
-SURELER = json.load(open('arac/sureler.json'))
-def sa(k):
-    try:
-        ad, no = [x.strip() for x in k.split(',', 1)]
-        s = next(i for i, x in enumerate(SURELER, 1) if x[0] == ad)
-        return s, int(no.split('-')[0])
-    except Exception:
-        return None
-def sure(url):
-    try:
-        open('/tmp/a.mp3', 'wb').write(urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=60).read())
-        return float(subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', '/tmp/a.mp3'],
-                                    capture_output=True, text=True).stdout.strip())
-    except Exception as e:
-        return str(e)
+"""Sesli meal hata ayıklama: üç ayette tilavet, meal ve birleşik ses süreleri."""
+import json, os, subprocess, sys
+sys.path.insert(0, 'arac')
+os.environ['SESLI_MEAL'] = '1'
+import pro
+def uz(p):
+    return subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration:stream=codec_name,channels,sample_rate', '-of', 'compact', p], capture_output=True, text=True).stdout
 out = []
-for v in json.load(open('videolar.json')):
-    x = sa(v['kaynak'])
-    if not x: out.append({'id': v['id'], 'kaynak': v['kaynak'], 'hata': 'kaynak'}); continue
-    g = sum(y[1] for y in SURELER[:x[0] - 1]) + x[1]
-    try:
-        t = json.load(urllib.request.urlopen(urllib.request.Request(f'https://api.alquran.cloud/v1/ayah/{g}/tr.vakfi', headers=UA), timeout=60))['data']['text']
-    except Exception as e:
-        t = str(e)
-    out.append({'id': v['id'], 'kaynak': v['kaynak'], 'g': g, 'bizim': v['metin'], 'vakfi': t,
-                'tilavet': sure(f'https://cdn.islamic.network/quran/audio/128/ar.mahermuaiqly/{g}.mp3'),
-                'meal_ses': next((r for b in (192, 128, 64, 48, 40, 32) for r in [sure(f'https://cdn.islamic.network/quran/audio/{b}/tr.vakfi-audio/{g}.mp3')] if isinstance(r, float)), None)})
+for k in ['Hûd, 115', 'İhlâs, 1', 'Enbiyâ, 19']:
+    r = pro.ses_sec({'tur': 'ayet', 'kaynak': k, 'id': 'x'})
+    sa = pro._sure_ayet(k); g = sum(x[1] for x in pro.SURELER[:sa[0] - 1]) + sa[1]
+    sil = subprocess.run(['ffmpeg', '-nostdin', '-i', r[0], '-af', 'silencedetect=n=-35dB:d=0.25', '-f', 'null', '-'], capture_output=True, text=True).stderr
+    out.append({'k': k, 'g': g, 'r': list(r), 'tilavet': uz(f'/tmp/tilavet-{g}.mp3'), 'meal': uz(f'/tmp/meal-{g}.mp3'), 'ikisi': uz(r[0]),
+                'sessiz': [l.split('] ')[-1] for l in sil.splitlines() if 'silence_' in l]})
 json.dump(out, open('ses_detay.json', 'w'), ensure_ascii=False, indent=1)
