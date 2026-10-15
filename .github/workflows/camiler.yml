@@ -1,0 +1,26 @@
+name: Cami listesi (OpenStreetMap)
+# Türkiye camileri Geofabrik'in günlük OSM kopyasından süzülür, bölge dosyalarına bölünür (ayda bir yeterli).
+on:
+  workflow_dispatch:
+  push:
+    paths: [.github/workflows/camiler.yml, arac/camiler.py]
+permissions:
+  contents: write
+jobs:
+  camiler:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -q && sudo apt-get install -yq osmium-tool
+      - run: curl -sSfL -o /tmp/tr.pbf https://download.geofabrik.de/europe/turkey-latest.osm.pbf && ls -la /tmp/tr.pbf
+      - run: |
+          osmium tags-filter /tmp/tr.pbf nwr/amenity=place_of_worship -o /tmp/ibadet.pbf
+          osmium tags-filter /tmp/ibadet.pbf nwr/religion=muslim -o /tmp/cami.pbf
+          osmium export /tmp/cami.pbf -f geojson -o /tmp/cami.geojson --geometry-types=point,polygon
+          python3 arac/camiler.py /tmp/cami.geojson
+          du -sh camiler; ls camiler | wc -l
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add camiler && git commit -qm "Cami listesi güncellendi (OpenStreetMap)" && git pull -q --rebase && git push
