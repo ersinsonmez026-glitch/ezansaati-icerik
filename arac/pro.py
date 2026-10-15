@@ -153,6 +153,14 @@ def ses_sec(v):
                             'adelay=800|800[b];[a][b]concat=n=2:v=0:a=1[o]', '-map', '[o]', '-c:a', 'aac', '-b:a', '128k', ikisi],
                            check=True)
             return (ikisi, 1.8, _sure_uzunlugu(ikisi), 'tilavet')
+        # Bazı kârîlerin dosyalarında baş/sonda uzun sessizlik var (ör. Abdülbasit): kırpılır
+        kirp = yol[:-4] + '-kirp.m4a'
+        if not os.path.exists(kirp):
+            subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', yol, '-af',
+                            'silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.15,areverse,'
+                            'silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.4,areverse',
+                            '-c:a', 'aac', '-b:a', '128k', kirp], check=True)
+        yol = kirp
         return (yol, 1.8, _sure_uzunlugu(yol), 'tilavet')   # Arapça yazı tam belirince
     klasor = os.path.join(KOK, 'ses')
     parcalar = sorted(f for f in os.listdir(klasor) if f.endswith(('.mp3', '.m4a', '.ogg'))) if os.path.isdir(klasor) else []
