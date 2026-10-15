@@ -8,7 +8,7 @@ Kullanım:
   python3 arac/pro.py mealornek <kimlikler>                 -> sesli meal önizlemesi (taslak dalı)
 Ses: ayet videolarında o ayetin tilaveti (Mâhir el-Muaykılî, Islamic Network CDN); hadis videolarında arac/ses/
 klasöründeki izinli ezgi/vokal kayıtlarından biri (kaynak ve lisans arac/ses/kaynak.json'da). Klasör boşsa sessiz."""
-import json, os, random, subprocess, sys, urllib.parse, urllib.request
+import json, os, random, subprocess, sys, urllib.error, urllib.parse, urllib.request
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 KOK = os.path.dirname(os.path.abspath(__file__))
@@ -135,8 +135,13 @@ def ses_sec(v):
         if v['kaynak'] in VAKFI and os.environ.get('SESLI_MEAL'):
             meal = f'/tmp/meal-{g}.mp3'
             if not os.path.exists(meal):
-                url = f'https://cdn.islamic.network/quran/audio/192/tr.vakfi-audio/{g}.mp3'
-                open(meal, 'wb').write(urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=120).read())
+                for b in (192, 128, 64, 48, 40, 32):   # kaydın hangi kalitede sunulduğu belli değil: en iyisi denenir
+                    try:
+                        url = f'https://cdn.islamic.network/quran/audio/{b}/tr.vakfi-audio/{g}.mp3'
+                        open(meal, 'wb').write(urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=120).read())
+                        break
+                    except urllib.error.HTTPError:
+                        continue
             ikisi = f'/tmp/tilavet-meal-{g}.m4a'   # tilavet, 0,8 sn ara, Türkçe meal
             subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', yol, '-i', meal, '-filter_complex',
                             '[0]aresample=44100,aformat=channel_layouts=stereo[a];[1]aresample=44100,aformat=channel_layouts=stereo,'
