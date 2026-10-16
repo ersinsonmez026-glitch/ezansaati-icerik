@@ -121,6 +121,33 @@ def _sure_uzunlugu(yol):
                                 capture_output=True, text=True, check=True).stdout.strip())
 
 
+def sessizlik_kisalt(kaynak, hedef, esik=1.5, kalan=1.0):
+    """Okuyuştaki uzun duraklar (esik sn'den uzun sessizlik) kalan sn'ye kısaltılır; hiçbir ses kesilmez.
+    Ardından ses düzeyi bütün videolarda aynı olacak şekilde eşitlenir (EBU R128, -18 LUFS, doğrusal)."""
+    o = subprocess.run(['ffmpeg', '-nostats', '-i', kaynak, '-af', f'silencedetect=n=-45dB:d={esik}', '-f', 'null', '-'],
+                       capture_output=True, text=True).stderr
+    bas = [float(x.split()[-1]) for x in o.splitlines() if 'silence_start:' in x]
+    son = [float(x.split('|')[0].split()[-1]) for x in o.splitlines() if 'silence_end:' in x]
+    T = _sure_uzunlugu(kaynak)
+    yar = kalan / 2
+    parca, a = [], 0.0
+    for s, e in zip(bas, son):                   # sonu olmayan (dosya sonundaki) sessizlik zaten kırpılı
+        parca.append((a, s + yar)); a = e - yar
+    parca.append((a, T))
+    ara = hedef[:-4] + '-ara.wav'
+    sz = ''.join(f'[0]atrim={x:.3f}:{y:.3f},asetpts=PTS-STARTPTS[p{i}];' for i, (x, y) in enumerate(parca))
+    sz += ''.join(f'[p{i}]' for i in range(len(parca))) + f'concat=n={len(parca)}:v=0:a=1[o]'
+    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', kaynak, '-filter_complex', sz, '-map', '[o]', ara], check=True)
+    o = subprocess.run(['ffmpeg', '-nostats', '-i', ara, '-af', 'loudnorm=I=-18:TP=-1.5:LRA=11:print_format=json',
+                        '-f', 'null', '-'], capture_output=True, text=True).stderr
+    m = json.loads(o[o.rindex('{'):o.rindex('}') + 1])
+    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', ara, '-af',
+                    f"loudnorm=I=-18:TP=-1.5:LRA=11:measured_I={m['input_i']}:measured_TP={m['input_tp']}:"
+                    f"measured_LRA={m['input_lra']}:measured_thresh={m['input_thresh']}:offset={m['target_offset']}:linear=true,"
+                    "aresample=44100", '-c:a', 'aac', '-b:a', '128k', hedef], check=True)
+    os.remove(ara)
+
+
 def ses_sec(v):
     """Videonun sesi: ayette tilavet (Kur'an genelindeki ayet numarasıyla tek dosya), hadiste ezgi. Yoksa None."""
     if v.get('tur') == 'ayet':
@@ -160,7 +187,10 @@ def ses_sec(v):
                             'silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.15,areverse,'
                             'silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.4,areverse',
                             '-c:a', 'aac', '-b:a', '128k', kirp], check=True)
-        yol = kirp
+        duzen = yol[:-4] + '-duzen.m4a'
+        if not os.path.exists(duzen):
+            sessizlik_kisalt(kirp, duzen)
+        yol = duzen
         return (yol, 1.8, _sure_uzunlugu(yol), 'tilavet')   # Arapça yazı tam belirince
     klasor = os.path.join(KOK, 'ses')
     parcalar = sorted(f for f in os.listdir(klasor) if f.endswith(('.mp3', '.m4a', '.ogg'))) if os.path.isdir(klasor) else []
@@ -317,8 +347,10 @@ if __name__ == '__main__':
         onayli.sort(key=lambda x: konu.SIRA.get(x.get('konu'), 9))
         json.dump(onayli, open('videolar.json', 'w'), ensure_ascii=False, indent=1)
     elif mod == 'ses':
+        # kimlikler verilirse yalnız o videoların sesi yenilenir
         arapca = {m['kaynak']: m.get('arapca', '') for m in metinler}
-        for v in onayli:
+        secili = [x for x in sys.argv[2].replace(' ', '').split(',') if x] if len(sys.argv) > 2 else []
+        for v in [x for x in onayli if not secili or x['id'] in secili]:
             try:
                 ses = ses_sec(v)
                 indir(v)
@@ -329,6 +361,7 @@ if __name__ == '__main__':
             # Kârî değişince ses adı da değişir: uygulamadaki eski önbellek kullanılmaz
             tur = (ses[3] if ses else '')
             if tur == 'tilavet' and KARI != 'ar.mahermuaiqly': tur = 'tilavet_' + KARI.split('.')[-1]
+            if tur.startswith('tilavet'): tur += '_d'   # duraklar kısaltılmış, ses eşitlenmiş: eski önbellek kullanılmaz
             v.update(selam_y=sy, selam_t=katman.selam_t, ses=tur,
                      ses_dosya=(os.path.basename(ses[0]) if ses and ses[3] == 'ezgi' else ''))
             print('sesli', v['id'], v['kaynak'], v['ses'])
