@@ -260,6 +260,43 @@ def onay(numaralar):
     print('onaylı foto', len(onayli))
 
 
+def ozeltaslak():
+    """Bölümlere özel kart taslakları (arac/ozel_secim.json: [aday no, bölüm, metnin kaynağı]) -> foto-ozeltaslak/."""
+    metin = {m['kaynak']: m for m in json.load(open(f'{KOK}/metinler.json'))}
+    aday_ = {a['no']: a for a in json.load(open('foto-aday/liste.json'))}
+    os.makedirs('foto-ozeltaslak', exist_ok=True)
+    liste = []
+    for no, bolum, k in json.load(open(f'{KOK}/ozel_secim.json')):
+        a, m = aday_[no], metin[k]
+        n = len(liste) + 1
+        try:
+            img = Image.open(io.BytesIO(ac(a['url']))).convert('RGB')
+        except Exception as e:
+            print('indirilemedi', a['sayfa'], e); continue
+        sy = kart(img, m['metin'], m['kaynak'], f'foto-ozeltaslak/{n:02d}', m.get('arapca', ''))
+        liste.append({'no': n, 'aday': no, 'bolum': bolum, 'pixabay': a['id'], 'sayfa': a['sayfa'], 'selam_y': sy, **m})
+        print(n, bolum, a['sayfa'], k)
+    json.dump(liste, open('foto-ozeltaslak/liste.json', 'w'), ensure_ascii=False, indent=1)
+
+
+def ozelonay(numaralar):
+    """Onaylanan bölüm kartları ozel.json'a (bolum alanıyla; eski uygulama sürümleri bu listeyi okumaz)."""
+    secim = {int(x) for x in numaralar.replace(' ', '').split(',') if x}
+    ozel = json.load(open('ozel.json')) if os.path.exists('ozel.json') else []
+    os.makedirs('fotolar', exist_ok=True)
+    for t in json.load(open('foto-ozeltaslak/liste.json')):
+        if t['no'] not in secim: continue
+        fid = f"o{t['pixabay']}"
+        shutil.copy(f"foto-ozeltaslak/{t['no']:02d}.jpg", f'fotolar/{fid}.jpg')
+        shutil.copy(f"foto-ozeltaslak/{t['no']:02d}_k.jpg", f'fotolar/{fid}_k.jpg')
+        ozel = [o for o in ozel if o['id'] != fid]
+        ozel.append({'id': fid, 'resim': f'fotolar/{fid}.jpg', 'kapak': f'fotolar/{fid}_k.jpg', 'tur': t['tur'],
+                     'metin': t['metin'], 'kaynak': t['kaynak'], 'pixabay': t['pixabay'], 'lisans': t['sayfa'],
+                     'selam_y': t['selam_y'], 'bolum': t['bolum'], 'eklendi': time.strftime('%Y-%m-%d')})
+    json.dump(ozel, open('ozel.json', 'w'), ensure_ascii=False, indent=1)
+    print('bölüm kartları', len(ozel))
+
+
 if __name__ == '__main__':
     mod = sys.argv[1]
     if mod == 'aday':
@@ -270,5 +307,9 @@ if __name__ == '__main__':
         onay(sys.argv[2])
     elif mod == 'gazze':
         gazze()
+    elif mod == 'ozeltaslak':
+        ozeltaslak()
+    elif mod == 'ozelonay':
+        ozelonay(sys.argv[2])
     elif mod == 'eslestir':
         eslestir()

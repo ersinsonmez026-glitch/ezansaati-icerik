@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       mod:
-        description: 'aday, taslak ya da onay'
+        description: 'aday, taslak, onay, ozeltaslak (arac/ozel_secim.json) ya da ozelonay'
         default: 'aday'
       girdi:
         description: 'aday: arama kelimeleri (virgülle); taslak/onay: numaralar'
@@ -30,13 +30,17 @@ jobs:
       - run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
-          if [ "${{ inputs.mod }}" = taslak ]; then git fetch -q origin foto-aday && git checkout FETCH_HEAD -- foto-aday && git reset -q -- foto-aday; fi
+          if [ "${{ inputs.mod }}" = taslak ] || [ "${{ inputs.mod }}" = ozeltaslak ]; then git fetch -q origin foto-aday && git checkout FETCH_HEAD -- foto-aday && git reset -q -- foto-aday; fi
           if [ "${{ inputs.mod }}" = onay ]; then git fetch -q origin foto-taslak && git checkout FETCH_HEAD -- foto-taslak && git reset -q -- foto-taslak; fi
+          if [ "${{ inputs.mod }}" = ozelonay ]; then git fetch -q origin foto-ozeltaslak && git checkout FETCH_HEAD -- foto-ozeltaslak && git reset -q -- foto-ozeltaslak; fi
       - run: python3 arac/foto.py "${{ inputs.mod }}" "${{ inputs.girdi }}" "${{ inputs.peygamber }}"
         env:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
       - run: |
-          if [ "${{ inputs.mod }}" = onay ] || [ "${{ inputs.mod }}" = eslestir ] || [ "${{ inputs.mod }}" = gazze ]; then
+          if [ "${{ inputs.mod }}" = ozelonay ]; then
+            rm -rf foto-ozeltaslak; git add fotolar ozel.json
+            git commit -m "Bölüm kartları: ${{ inputs.girdi }}"; git pull -q --rebase; git push
+          elif [ "${{ inputs.mod }}" = onay ] || [ "${{ inputs.mod }}" = eslestir ] || [ "${{ inputs.mod }}" = gazze ]; then
             rm -rf foto-taslak; git add fotolar fotolar.json
             git commit -m "Foto kartlar (${{ inputs.mod }}): ${{ inputs.girdi }}"; git pull -q --rebase; git push
           else
