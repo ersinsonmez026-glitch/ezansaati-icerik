@@ -31,6 +31,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
           if [ "${{ inputs.mod }}" = taslak ] || [ "${{ inputs.mod }}" = ozeltaslak ]; then git fetch -q origin foto-aday && git checkout FETCH_HEAD -- foto-aday && git reset -q -- foto-aday; fi
+          if [ "${{ inputs.mod }}" = ozeltaslak ]; then git fetch -q origin foto-pexels && git checkout FETCH_HEAD -- foto-pexels && git reset -q -- foto-pexels; fi
           if [ "${{ inputs.mod }}" = onay ]; then git fetch -q origin foto-taslak && git checkout FETCH_HEAD -- foto-taslak && git reset -q -- foto-taslak; fi
           if [ "${{ inputs.mod }}" = ozelonay ]; then git fetch -q origin foto-ozeltaslak && git checkout FETCH_HEAD -- foto-ozeltaslak && git reset -q -- foto-ozeltaslak; fi
       - run: python3 arac/foto.py "${{ inputs.mod }}" "${{ inputs.girdi }}" "${{ inputs.peygamber }}"

@@ -294,14 +294,19 @@ def ozeltaslak():
     """Bölümlere özel kart taslakları (arac/ozel_secim.json: [aday no, bölüm, metnin kaynağı]) -> foto-ozeltaslak/."""
     metin = {m['kaynak']: m for m in json.load(open(f'{KOK}/metinler.json'))}
     aday_ = {a['no']: a for a in json.load(open('foto-aday/liste.json'))}
+    if os.path.exists('foto-pexels/liste.json'):   # kullanıcının verdiği Pexels fotoğrafları: "P1", "P2" …
+        aday_.update({f"P{a['no']}": a for a in json.load(open('foto-pexels/liste.json'))})
     os.makedirs('foto-ozeltaslak', exist_ok=True)
     liste = []
     for no, bolum, k in json.load(open(f'{KOK}/ozel_secim.json')):
         a, m = aday_[no], metin[k]
         n = len(liste) + 1
-        try:   # aday listesindeki bağlantı 24 saatte geçersizleşir: güncel bağlantı kimlikle yeniden alınır
-            u = 'https://pixabay.com/api/?' + urllib.parse.urlencode({'key': os.environ['PIXABAY_API_KEY'], 'id': a['id']})
-            img = Image.open(io.BytesIO(ac(json.loads(ac(u))['hits'][0]['largeImageURL']))).convert('RGB')
+        try:   # Pixabay bağlantısı 24 saatte geçersizleşir: güncel bağlantı kimlikle yeniden alınır
+            if str(a['id']).startswith('pexels-'):
+                img = Image.open(io.BytesIO(ac(a['url'] + '?auto=compress&cs=tinysrgb&w=1800'))).convert('RGB')
+            else:
+                u = 'https://pixabay.com/api/?' + urllib.parse.urlencode({'key': os.environ['PIXABAY_API_KEY'], 'id': a['id']})
+                img = Image.open(io.BytesIO(ac(json.loads(ac(u))['hits'][0]['largeImageURL']))).convert('RGB')
         except Exception as e:
             print('indirilemedi', a['sayfa'], e); continue
         sy = kart(img, m['metin'], m['kaynak'], f'foto-ozeltaslak/{n:02d}', m.get('arapca', ''), yumusak=True)
