@@ -285,8 +285,10 @@ def ozelonay(numaralar):
     secim = {int(x) for x in numaralar.replace(' ', '').split(',') if x}
     ozel = json.load(open('ozel.json')) if os.path.exists('ozel.json') else []
     os.makedirs('fotolar', exist_ok=True)
+    bolumu = {no: b for no, b, _ in json.load(open(f'{KOK}/ozel_secim.json'))}   # bölüm, seçim listesinden
     for t in json.load(open('foto-ozeltaslak/liste.json')):
         if t['no'] not in secim: continue
+        t['bolum'] = bolumu[t['aday']]
         fid = f"o{t['pixabay']}"
         shutil.copy(f"foto-ozeltaslak/{t['no']:02d}.jpg", f'fotolar/{fid}.jpg')
         shutil.copy(f"foto-ozeltaslak/{t['no']:02d}_k.jpg", f'fotolar/{fid}_k.jpg')
