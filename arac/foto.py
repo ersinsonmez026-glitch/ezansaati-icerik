@@ -75,9 +75,10 @@ def sakin_yer(img, yukseklik):
     return en_y
 
 
-def kart(img, metin, kaynak, cikti, arapca='', hat=False, selam=True, odak=0.5, yer=None):
+def kart(img, metin, kaynak, cikti, arapca='', hat=False, selam=True, odak=0.5, yer=None, yumusak=False):
     """hat: görüntüde hat yazısı var, Arapça satır konmaz. selam: altta selam yazısına yer bırak. odak: yatay kesim merkezi (0-1).
-    yer: yazı bloğunun ortası, yüksekliğe oranla (0-1); verilirse en sakin yer aranmaz (kişinin üstüne gelmesin diye elle)."""
+    yer: yazı bloğunun ortası, yüksekliğe oranla (0-1); verilirse en sakin yer aranmaz (kişinin üstüne gelmesin diye elle).
+    yumusak: koyu bant yok; yazı biraz küçük, okunurluğu yalnız harflerin çevresindeki yumuşak gölge sağlar (görsel kesilmez)."""
     if hat: arapca = ''
     r = max(W / img.width, H / img.height)
     img = img.resize((int(img.width * r) + 1, int(img.height * r) + 1), Image.LANCZOS)
@@ -89,13 +90,15 @@ def kart(img, metin, kaynak, cikti, arapca='', hat=False, selam=True, odak=0.5, 
     img = Image.merge('RGB', (rr.point(lambda v: min(255, v * 1.04)), gg, bb.point(lambda v: v * 0.95)))
     d = ImageDraw.Draw(Image.new('RGB', (W, H)))
     uzun = len(metin) > MAKS_METIN
-    f = ImageFont.truetype(f'{KOK}/yazi/Lora-Medium.ttf', int((38 if uzun else 44) * O))
-    fs = ImageFont.truetype(f'{KOK}/yazi/Lora-Bold.ttf', int(26 * O))
-    fa = ImageFont.truetype(f'{KOK}/yazi/AmiriQuran-Regular.ttf', int(46 * O))
+    b = 0.86 if yumusak else 1   # yumuşak kartta yazı biraz küçük: görselin daha azını kaplar
+    f = ImageFont.truetype(f'{KOK}/yazi/Lora-SemiBold.ttf' if yumusak and os.path.exists(f'{KOK}/yazi/Lora-SemiBold.ttf')
+                           else f'{KOK}/yazi/Lora-Medium.ttf', int((38 if uzun else 44) * O * b))
+    fs = ImageFont.truetype(f'{KOK}/yazi/Lora-Bold.ttf', int(26 * O * b))
+    fa = ImageFont.truetype(f'{KOK}/yazi/AmiriQuran-Regular.ttf', int(46 * O * b))
     tr = sar(d, '“' + metin.strip('“”"') + '”', f, W - 120 * O)
     ar = sar(d, arapca, fa, W - 110 * O, rtl=True) if arapca else []
     if len(ar) > 2: ar = []
-    LH, ALH = int((54 if uzun else 62) * O), int(96 * O)   # Amiri Quran harekeleri uzun: satır arası geniş
+    LH, ALH = int((54 if uzun else 62) * O * b), int(96 * O * b)   # Amiri Quran harekeleri uzun: satır arası geniş
     blok = len(ar) * ALH + (int(34 * O) if ar else 0) + len(tr) * LH + int(50 * O)
     yuk = blok + (int((68 + SELAM_H - 50) * O) if selam else 0)
     y = sakin_yer(img, yuk) if yer is None else int(min(max(H * yer - yuk / 2, 90 * O), H - 170 * O - yuk))
@@ -110,6 +113,8 @@ def kart(img, metin, kaynak, cikti, arapca='', hat=False, selam=True, odak=0.5, 
     koyu = int(60 + 130 * min(1, max(0, (isik - 60) / 110)))
     if yer is not None: koyu = max(koyu, 150)   # elle yerleştirilen yazı karmaşık görüntü üstünde: koyu bant
     c = img.convert('RGBA')
+    if yumusak:
+        return _yumusak_yaz(c, satirlar, fs, cikti, selam_y)
     g = Image.new('L', (1, H))
     for yy in range(H):
         g.putpixel((0, yy), int(min(1, max(0, (yy - H * 0.45) / (H * 0.55)) * 1.2) * 170))
@@ -125,6 +130,31 @@ def kart(img, metin, kaynak, cikti, arapca='', hat=False, selam=True, odak=0.5, 
     sh = Image.new('RGBA', (W, H), (0, 0, 0, 255))
     sh.putalpha(tl.split()[3].filter(ImageFilter.GaussianBlur(8)).point(lambda v: int(v * .8)))
     c.alpha_composite(sh, (0, 4)); c.alpha_composite(tl)
+    lg = Image.open(f'{KOK}/logo.webp').convert('RGBA'); lg.thumbnail((int(132 * O), int(132 * O)))
+    c.alpha_composite(lg, (W - lg.width - int(34 * O), H - int(44 * O) - lg.height))
+    c.convert('RGB').save(cikti + '.jpg', quality=86, optimize=True, progressive=True)
+    c.convert('RGB').resize((360, 640), Image.LANCZOS).save(cikti + '_k.jpg', quality=80)
+    return round(selam_y / H, 4)
+
+
+def _yumusak_yaz(c, satirlar, fs, cikti, selam_y):
+    """Bant olmadan yazı: harflerin çevresinde geniş ve çok yumuşak bir gölge (yalnız yazının olduğu yerde, sınırı
+    belli olmaz) + yakın ince gölge. Görselin geri kalanı olduğu gibi kalır; altta logo için hafif bir koyulaşma."""
+    g = Image.new('L', (1, H))
+    for yy in range(H):
+        g.putpixel((0, yy), int(min(1, max(0, (yy - H * 0.80) / (H * 0.20))) * 90))
+    k = Image.new('RGBA', (W, H), (0, 0, 0, 255)); k.putalpha(g.resize((W, H))); c.alpha_composite(k)
+    tl = Image.new('RGBA', (W, H), (0, 0, 0, 0)); dd = ImageDraw.Draw(tl)
+    for yy, s, font, renk, rtl in satirlar:
+        yon = 'rtl' if rtl else None
+        x = (W - dd.textlength(s, font=font, direction=yon)) / 2
+        dd.text((x, yy), s, font=font, fill=renk, direction=yon)
+    a = tl.split()[3]
+    # Geniş hale: harflerin çevresi, uzaklaştıkça kaybolur (dikdörtgen bant görünmez)
+    hale = a.filter(ImageFilter.MaxFilter(9)).filter(ImageFilter.GaussianBlur(int(26 * O))).point(lambda v: min(255, int(v * 1.9)))
+    sh = Image.new('RGBA', (W, H), (0, 0, 0, 255)); sh.putalpha(hale.point(lambda v: int(v * .62))); c.alpha_composite(sh)
+    yakin = Image.new('RGBA', (W, H), (0, 0, 0, 255)); yakin.putalpha(a.filter(ImageFilter.GaussianBlur(3)).point(lambda v: int(v * .85)))
+    c.alpha_composite(yakin, (0, 2)); c.alpha_composite(tl)
     lg = Image.open(f'{KOK}/logo.webp').convert('RGBA'); lg.thumbnail((int(132 * O), int(132 * O)))
     c.alpha_composite(lg, (W - lg.width - int(34 * O), H - int(44 * O) - lg.height))
     c.convert('RGB').save(cikti + '.jpg', quality=86, optimize=True, progressive=True)
@@ -274,7 +304,7 @@ def ozeltaslak():
             img = Image.open(io.BytesIO(ac(json.loads(ac(u))['hits'][0]['largeImageURL']))).convert('RGB')
         except Exception as e:
             print('indirilemedi', a['sayfa'], e); continue
-        sy = kart(img, m['metin'], m['kaynak'], f'foto-ozeltaslak/{n:02d}', m.get('arapca', ''))
+        sy = kart(img, m['metin'], m['kaynak'], f'foto-ozeltaslak/{n:02d}', m.get('arapca', ''), yumusak=True)
         liste.append({**m, 'no': n, 'aday': no, 'bolum': bolum, 'pixabay': a['id'], 'sayfa': a['sayfa'], 'selam_y': sy})
         print(n, bolum, a['sayfa'], k)
     json.dump(liste, open('foto-ozeltaslak/liste.json', 'w'), ensure_ascii=False, indent=1)
