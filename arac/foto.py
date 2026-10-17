@@ -330,6 +330,32 @@ def ozelonay(numaralar):
     print('bölüm kartları', len(ozel))
 
 
+def pexels(kimlikler):
+    """Kullanıcının verdiği Pexels fotoğrafları (kimlikler, virgülle): numaralı vitrin (foto-pexels/) ve liste."""
+    ids = [x.strip() for x in kimlikler.split(',') if x.strip()]
+    os.makedirs('foto-pexels', exist_ok=True)
+    liste, ims = [], []
+    for i in ids:
+        u = f'https://images.pexels.com/photos/{i}/pexels-photo-{i}.jpeg'
+        try:
+            im = Image.open(io.BytesIO(ac(u + '?auto=compress&cs=tinysrgb&w=700'))).convert('RGB')
+        except Exception as e:
+            print('indirilemedi', i, e); continue
+        liste.append({'no': len(liste) + 1, 'id': f'pexels-{i}', 'url': u, 'sayfa': f'https://www.pexels.com/photo/{i}/',
+                      'boyut': [im.width, im.height]}); ims.append(im)
+    f = ImageFont.truetype(f'{KOK}/yazi/Lora-Bold.ttf', 30)
+    tw, th, cols = 220, 330, 6
+    c = Image.new('RGB', (cols * (tw + 6), ((len(ims) + cols - 1) // cols) * (th + 6)), 'white')
+    for k, (a, im) in enumerate(zip(liste, ims)):
+        r = max(tw / im.width, th / im.height); im = im.resize((int(im.width * r) + 1, int(im.height * r) + 1))
+        im = im.crop(((im.width - tw) // 2, (im.height - th) // 2, (im.width - tw) // 2 + tw, (im.height - th) // 2 + th))
+        x, y = (k % cols) * (tw + 6), (k // cols) * (th + 6); c.paste(im, (x, y))
+        d = ImageDraw.Draw(c); d.rectangle((x, y, x + 64, y + 40), fill=(180, 0, 0)); d.text((x + 6, y + 2), 'P' + str(a['no']), font=f, fill='white')
+    c.save('foto-pexels/vitrin.jpg', quality=85)
+    json.dump(liste, open('foto-pexels/liste.json', 'w'), ensure_ascii=False, indent=1)
+    print(len(liste), 'fotoğraf')
+
+
 if __name__ == '__main__':
     mod = sys.argv[1]
     if mod == 'aday':
@@ -340,6 +366,8 @@ if __name__ == '__main__':
         onay(sys.argv[2])
     elif mod == 'gazze':
         gazze()
+    elif mod == 'pexels':
+        pexels(sys.argv[2])
     elif mod == 'ozeltaslak':
         ozeltaslak()
     elif mod == 'ozelonay':
