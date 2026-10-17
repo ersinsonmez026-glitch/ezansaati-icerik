@@ -275,7 +275,7 @@ def ozeltaslak():
         except Exception as e:
             print('indirilemedi', a['sayfa'], e); continue
         sy = kart(img, m['metin'], m['kaynak'], f'foto-ozeltaslak/{n:02d}', m.get('arapca', ''))
-        liste.append({'no': n, 'aday': no, 'bolum': bolum, 'pixabay': a['id'], 'sayfa': a['sayfa'], 'selam_y': sy, **m})
+        liste.append({**m, 'no': n, 'aday': no, 'bolum': bolum, 'pixabay': a['id'], 'sayfa': a['sayfa'], 'selam_y': sy})
         print(n, bolum, a['sayfa'], k)
     json.dump(liste, open('foto-ozeltaslak/liste.json', 'w'), ensure_ascii=False, indent=1)
 
