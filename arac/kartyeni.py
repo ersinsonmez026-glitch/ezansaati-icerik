@@ -19,7 +19,7 @@ HAM = 'ham'          # ham görüntü önbelleği (yalnız Actions önbelleğind
 CIK = 'foto-yeni'
 ALT_SINIR = 0.25     # yazı bloğunun üstü bundan yukarı çıkmaz (yüksekliğe oranla)
 IYI = 0.12           # bu puanın altı rahat okunur: alttan ilk böyle yer seçilir
-SINIR = 0.22         # en iyi yer bile bunun üstündeyse kart elenir
+SINIR = 0.18         # en iyi yer bile bunun üstündeyse kart elenir (vitrinlerde gözle ayarlandı)
 
 
 def _pixabay(pid):
@@ -187,7 +187,7 @@ def onayla(cikar):
         eski_dosya |= {x for f in json.load(open('ozel.json')) for x in (f['resim'], f['kapak'])}
     out = {'fotolar': [], 'ozel': []}
     for t in json.load(open(f'{CIK}/liste.json')):
-        if t['elendi'] or t['no'] in cikar: continue
+        if t['puan'] > SINIR or t['no'] in cikar: continue
         e = dict(t['eski']); fid = e['id']
         # Yeni dosya adı: telefonlardaki ve jsDelivr'daki eski kopya kullanılmaz
         e['resim'], e['kapak'] = f'fotolar/{fid}_y.jpg', f'fotolar/{fid}_y_k.jpg'

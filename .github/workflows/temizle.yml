@@ -16,6 +16,7 @@ jobs:
           yol = ['videolar.json', 'fotolar.json']
           yol += [x for v in json.load(open('videolar.json')) for x in (v['video'], v['kapak'])]
           yol += [x for f in json.load(open('fotolar.json')) for x in (f['resim'], f['kapak'])]
+          yol += ['ozel.json'] + [x for f in json.load(open('ozel.json')) for x in (f['resim'], f['kapak'])]
           def p(y):
               u = f'https://purge.jsdelivr.net/gh/${{ github.repository }}@main/{y}'
               try:
