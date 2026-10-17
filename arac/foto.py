@@ -150,12 +150,12 @@ def kart(img, metin, kaynak, cikti, arapca='', hat=False, selam=True, odak=0.5, 
 
 
 def _yumusak_yaz(c, satirlar, fs, cikti, selam_y):
-    """Yazı her kartta tek renk. Bant yok: yazı hangi yarıdaysa o kenardan ortaya doğru yumuşakça kaybolan geçiş;
-    gücü yazının altındaki zeminin parlaklığına göre. Geçişe rağmen zemin çok açıksa bütün yazı koyu renk olur."""
+    """Yazı her kartta tek renk; görsel hiç koyulaştırılmaz. Zemin açıksa bütün yazı koyu (ince açık hale),
+    değilse krem (kalın koyu kenar ve gölge)."""
     ust = satirlar[0][0] - int(24 * O); alt = satirlar[-1][0] + int(44 * O)
     kutu = (int(70 * O), max(0, ust), W - int(70 * O), min(H, alt))
     isik = ImageStat.Stat(c.convert('L').crop(kutu)).mean[0]
-    guc = min(0.72, max(0.0, (isik - 70) / max(isik, 1)))   # yazının altı ~70 parlaklığa insin
+    guc = 0.0   # karartma yok (kullanıcı isteği): okunurluğu yazının rengi, kenarı ve gölgesi sağlar
     if guc > 0.02:
         g = Image.new('L', (1, H))
         yukarida = (ust + alt) / 2 < H / 2
@@ -168,7 +168,7 @@ def _yumusak_yaz(c, satirlar, fs, cikti, selam_y):
             t = t * t * (3 - 2 * t)   # yumuşak (smoothstep)
             g.putpixel((0, yy), int(255 * guc * t))
         k = Image.new('RGBA', (W, H), (0, 0, 0, 255)); k.putalpha(g.resize((W, H))); c.alpha_composite(k)
-    koyu_yazi = ImageStat.Stat(c.convert('L').crop(kutu)).mean[0] > 135   # geçişten sonra hâlâ çok açıksa
+    koyu_yazi = isik > 125   # açık zeminde koyu yazı
     tl = Image.new('RGBA', (W, H), (0, 0, 0, 0)); dd = ImageDraw.Draw(tl)
     for yy, s, font, renk, rtl in satirlar:
         yon = 'rtl' if rtl else None
