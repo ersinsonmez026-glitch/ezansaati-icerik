@@ -269,8 +269,9 @@ def ozeltaslak():
     for no, bolum, k in json.load(open(f'{KOK}/ozel_secim.json')):
         a, m = aday_[no], metin[k]
         n = len(liste) + 1
-        try:
-            img = Image.open(io.BytesIO(ac(a['url']))).convert('RGB')
+        try:   # aday listesindeki bağlantı 24 saatte geçersizleşir: güncel bağlantı kimlikle yeniden alınır
+            u = 'https://pixabay.com/api/?' + urllib.parse.urlencode({'key': os.environ['PIXABAY_API_KEY'], 'id': a['id']})
+            img = Image.open(io.BytesIO(ac(json.loads(ac(u))['hits'][0]['largeImageURL']))).convert('RGB')
         except Exception as e:
             print('indirilemedi', a['sayfa'], e); continue
         sy = kart(img, m['metin'], m['kaynak'], f'foto-ozeltaslak/{n:02d}', m.get('arapca', ''))
