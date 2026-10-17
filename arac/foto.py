@@ -138,29 +138,33 @@ def kart(img, metin, kaynak, cikti, arapca='', hat=False, selam=True, odak=0.5, 
 
 
 def _yumusak_yaz(c, satirlar, fs, cikti, selam_y):
-    """Bant olmadan yazı: harflerin çevresinde geniş ve çok yumuşak bir gölge (yalnız yazının olduğu yerde, sınırı
-    belli olmaz) + yakın ince gölge. Görselin geri kalanı olduğu gibi kalır; altta logo için hafif bir koyulaşma."""
-    g = Image.new('L', (1, H))
-    for yy in range(H):
-        g.putpixel((0, yy), int(min(1, max(0, (yy - H * 0.80) / (H * 0.20))) * 90))
-    k = Image.new('RGBA', (W, H), (0, 0, 0, 255)); k.putalpha(g.resize((W, H))); c.alpha_composite(k)
-    tl = Image.new('RGBA', (W, H), (0, 0, 0, 0)); dd = ImageDraw.Draw(tl)
-    for yy, s, font, renk, rtl in satirlar:
+    """Karartma yok: yazının rengi altındaki görüntüye göre seçilir. Açık zeminde koyu kahve yazı (ince açık hale),
+    koyu zeminde krem yazı (ince koyu kenar ve yakın gölge). Görselin hiçbir yeri koyulaştırılmaz."""
+    gri = c.convert('L')
+    koyu_t, acik_t = Image.new('RGBA', (W, H), (0, 0, 0, 0)), Image.new('RGBA', (W, H), (0, 0, 0, 0))
+    for yy, s, font, renk, rtl in satirlar:   # her satırın rengi kendi altındaki zemine göre
         yon = 'rtl' if rtl else None
-        x = (W - dd.textlength(s, font=font, direction=yon)) / 2
-        dd.text((x, yy), s, font=font, fill=renk, direction=yon)
-    a = tl.split()[3]
-    # Geniş hale: harflerin çevresi, uzaklaştıkça kaybolur (dikdörtgen bant görünmez)
-    hale = a.filter(ImageFilter.MaxFilter(9)).filter(ImageFilter.GaussianBlur(int(26 * O))).point(lambda v: min(255, int(v * 1.9)))
-    sh = Image.new('RGBA', (W, H), (0, 0, 0, 255)); sh.putalpha(hale.point(lambda v: int(v * .62))); c.alpha_composite(sh)
-    yakin = Image.new('RGBA', (W, H), (0, 0, 0, 255)); yakin.putalpha(a.filter(ImageFilter.GaussianBlur(3)).point(lambda v: int(v * .85)))
-    c.alpha_composite(yakin, (0, 2)); c.alpha_composite(tl)
+        gen = ImageDraw.Draw(koyu_t).textlength(s, font=font, direction=yon); x = (W - gen) / 2
+        bb = (int(max(0, x)), max(0, yy), int(min(W, x + gen)), min(H, yy + int(font.size * 1.3)))
+        if ImageStat.Stat(gri.crop(bb)).mean[0] > 140:
+            r2 = (122, 86, 24) if font is fs else ((92, 62, 14) if rtl else (46, 32, 14))
+            ImageDraw.Draw(koyu_t).text((x, yy), s, font=font, fill=r2, direction=yon)
+        else:
+            ImageDraw.Draw(acik_t).text((x, yy), s, font=font, fill=renk, direction=yon,
+                                        stroke_width=max(1, int(1.2 * O)), stroke_fill=(20, 14, 8))
+    a = koyu_t.split()[3]   # koyu yazının çevresinde ince açık hale (zemin karışıksa harfler ayrışsın)
+    h = Image.new('RGBA', (W, H), (255, 248, 235, 255))
+    h.putalpha(a.filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.GaussianBlur(4)).point(lambda v: min(255, int(v * .8))))
+    c.alpha_composite(h); c.alpha_composite(koyu_t)
+    a = acik_t.split()[3]   # açık yazının hemen altında küçük, yumuşak gölge (yalnız harf biçiminde)
+    sh = Image.new('RGBA', (W, H), (0, 0, 0, 255))
+    sh.putalpha(a.filter(ImageFilter.GaussianBlur(5)).point(lambda v: min(255, int(v * 1.1))))
+    c.alpha_composite(sh, (0, 3)); c.alpha_composite(acik_t)
     lg = Image.open(f'{KOK}/logo.webp').convert('RGBA'); lg.thumbnail((int(132 * O), int(132 * O)))
     c.alpha_composite(lg, (W - lg.width - int(34 * O), H - int(44 * O) - lg.height))
     c.convert('RGB').save(cikti + '.jpg', quality=86, optimize=True, progressive=True)
     c.convert('RGB').resize((360, 640), Image.LANCZOS).save(cikti + '_k.jpg', quality=80)
     return round(selam_y / H, 4)
-
 
 def taslak(numaralar, pey_no):
     secim = {int(x) for x in numaralar.replace(',', ' ').split()}

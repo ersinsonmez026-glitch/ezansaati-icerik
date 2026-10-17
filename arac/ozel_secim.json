@@ -10,26 +10,6 @@
   "Hadis-i Şerif · Tirmizî, Sıfatü’l-kıyâme, 43"
  ],
  [
-  21,
-  "ramazan",
-  "Hadis-i Şerif · Buhârî, Îmân, 28"
- ],
- [
-  22,
-  "ramazan",
-  "Kadir, 3"
- ],
- [
-  45,
-  "ramazan",
-  "Hadis-i Şerif · Tirmizî, Deavât, 1"
- ],
- [
-  25,
-  "bayram",
-  "Hucurât, 10"
- ],
- [
   19,
   "bayram",
   "Nisâ, 86"
@@ -45,11 +25,6 @@
   "Hadis-i Şerif · Buhârî, Îmân, 7"
  ],
  [
-  33,
-  "bayram",
-  "Hadis-i Şerif · Tirmizî, Menâkıb, 31"
- ],
- [
   35,
   "bayram",
   "Yûnus, 25"
@@ -58,11 +33,6 @@
   37,
   "bayram",
   "Hadis-i Şerif · Tirmizî, Birr, 75"
- ],
- [
-  39,
-  "bayram",
-  "Hadis-i Şerif · İbn Mâce, Edeb, 57"
  ],
  [
   40,
@@ -83,11 +53,6 @@
   72,
   "kandil",
   "Hadis-i Şerif · Tirmizî, Kader, 6"
- ],
- [
-  75,
-  "kandil",
-  "Furkân, 62"
  ],
  [
   77,
@@ -140,11 +105,6 @@
   "Nahl, 53"
  ],
  [
-  "P11",
-  "ramazan",
-  "Bakara, 152"
- ],
- [
   "P12",
   "ramazan",
   "İsrâ, 82"
@@ -153,11 +113,6 @@
   "P13",
   "ramazan",
   "Hadis-i Şerif · Ebû Dâvûd, Vitr, 26"
- ],
- [
-  "P15",
-  "ramazan",
-  "Mâide, 88"
  ],
  [
   "P16",
@@ -218,15 +173,5 @@
   "P8",
   "cuma",
   "Hadis-i Şerif · Müslim, Zühd, 44"
- ],
- [
-  "P10",
-  "cuma",
-  "Hicr, 98"
- ],
- [
-  "P21",
-  "cuma",
-  "Hadis-i Şerif · Nesâî, Mesâcid, 14"
  ]
 ]
