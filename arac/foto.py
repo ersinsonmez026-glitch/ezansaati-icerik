@@ -138,28 +138,33 @@ def kart(img, metin, kaynak, cikti, arapca='', hat=False, selam=True, odak=0.5, 
 
 
 def _yumusak_yaz(c, satirlar, fs, cikti, selam_y):
-    """Karartma yok: yazının rengi altındaki görüntüye göre seçilir. Açık zeminde koyu kahve yazı (ince açık hale),
-    koyu zeminde krem yazı (ince koyu kenar ve yakın gölge). Görselin hiçbir yeri koyulaştırılmaz."""
-    gri = c.convert('L')
-    koyu_t, acik_t = Image.new('RGBA', (W, H), (0, 0, 0, 0)), Image.new('RGBA', (W, H), (0, 0, 0, 0))
-    for yy, s, font, renk, rtl in satirlar:   # her satırın rengi kendi altındaki zemine göre
+    """Yazı her kartta tek renk (krem, kaynak altın). Bant yok: yazı hangi yarıdaysa o kenardan ortaya doğru
+    yumuşakça kaybolan hafif bir geçiş; gücü yazının altındaki zeminin parlaklığına göre (koyu zeminde hiç yok)."""
+    ust = satirlar[0][0] - int(20 * O); alt = satirlar[-1][0] + int(40 * O)
+    isik = ImageStat.Stat(c.convert('L').crop((int(80 * O), max(0, ust), W - int(80 * O), min(H, alt)))).mean[0]
+    guc = min(0.62, max(0.0, (isik - 85) / max(isik, 1)))   # yazının altı ~85 parlaklığa insin
+    if guc > 0.02:
+        g = Image.new('L', (1, H))
+        yukarida = (ust + alt) / 2 < H / 2
+        kenar = alt + int(170 * O) if yukarida else ust - int(170 * O)   # geçişin kaybolduğu yer
+        for yy in range(H):
+            if yukarida:
+                t = 1.0 if yy <= alt else max(0.0, 1 - (yy - alt) / max(1, kenar - alt))
+                t = t if yy >= ust else 1.0
+            else:
+                t = 1.0 if yy >= ust else max(0.0, 1 - (ust - yy) / max(1, ust - kenar))
+            t = t * t * (3 - 2 * t)   # yumuşak (smoothstep)
+            g.putpixel((0, yy), int(255 * guc * t))
+        k = Image.new('RGBA', (W, H), (0, 0, 0, 255)); k.putalpha(g.resize((W, H))); c.alpha_composite(k)
+    tl = Image.new('RGBA', (W, H), (0, 0, 0, 0)); dd = ImageDraw.Draw(tl)
+    for yy, s, font, renk, rtl in satirlar:
         yon = 'rtl' if rtl else None
-        gen = ImageDraw.Draw(koyu_t).textlength(s, font=font, direction=yon); x = (W - gen) / 2
-        bb = (int(max(0, x)), max(0, yy), int(min(W, x + gen)), min(H, yy + int(font.size * 1.3)))
-        if ImageStat.Stat(gri.crop(bb)).mean[0] > 140:
-            r2 = (122, 86, 24) if font is fs else ((92, 62, 14) if rtl else (46, 32, 14))
-            ImageDraw.Draw(koyu_t).text((x, yy), s, font=font, fill=r2, direction=yon)
-        else:
-            ImageDraw.Draw(acik_t).text((x, yy), s, font=font, fill=renk, direction=yon,
-                                        stroke_width=max(1, int(1.2 * O)), stroke_fill=(20, 14, 8))
-    a = koyu_t.split()[3]   # koyu yazının çevresinde ince açık hale (zemin karışıksa harfler ayrışsın)
-    h = Image.new('RGBA', (W, H), (255, 248, 235, 255))
-    h.putalpha(a.filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.GaussianBlur(4)).point(lambda v: min(255, int(v * .8))))
-    c.alpha_composite(h); c.alpha_composite(koyu_t)
-    a = acik_t.split()[3]   # açık yazının hemen altında küçük, yumuşak gölge (yalnız harf biçiminde)
+        x = (W - dd.textlength(s, font=font, direction=yon)) / 2
+        dd.text((x, yy), s, font=font, fill=renk, direction=yon,
+                stroke_width=max(1, int(1.0 * O)), stroke_fill=(20, 14, 8))
     sh = Image.new('RGBA', (W, H), (0, 0, 0, 255))
-    sh.putalpha(a.filter(ImageFilter.GaussianBlur(2)).point(lambda v: int(v * .75)))
-    c.alpha_composite(sh, (0, 2)); c.alpha_composite(acik_t)
+    sh.putalpha(tl.split()[3].filter(ImageFilter.GaussianBlur(2)).point(lambda v: int(v * .7)))
+    c.alpha_composite(sh, (0, 2)); c.alpha_composite(tl)
     lg = Image.open(f'{KOK}/logo.webp').convert('RGBA'); lg.thumbnail((int(132 * O), int(132 * O)))
     c.alpha_composite(lg, (W - lg.width - int(34 * O), H - int(44 * O) - lg.height))
     c.convert('RGB').save(cikti + '.jpg', quality=86, optimize=True, progressive=True)
