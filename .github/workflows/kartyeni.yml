@@ -1,0 +1,49 @@
+name: Kartları tek planla yeniden çiz
+
+# arac/kartyeni.py. mod=hazirla: bütün kartlar (genel, Mazlumlar, bölüm) "foto-yeni" dalına taslak + vitrin.
+# mod=onayla: taslaklar (elenenler ve girdi'deki numaralar hariç) fotolar/, fotolar.json ve ozel.json'a.
+on:
+  workflow_dispatch:
+    inputs:
+      mod:
+        description: 'hazirla ya da onayla'
+        default: 'hazirla'
+      girdi:
+        description: 'onayla: ayrıca çıkarılacak numaralar'
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  is:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -q pillow numpy
+      - uses: actions/cache@v4
+        with:
+          path: ham
+          key: ham-${{ github.run_id }}
+          restore-keys: ham-
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          if [ "${{ inputs.mod }}" = hazirla ]; then
+            for d in foto-aday foto-pexels; do git fetch -q origin $d && git checkout FETCH_HEAD -- $d && git reset -q -- $d; done
+          else
+            git fetch -q origin foto-yeni && git checkout FETCH_HEAD -- foto-yeni && git reset -q -- foto-yeni
+          fi
+      - run: python3 arac/kartyeni.py "${{ inputs.mod }}" "${{ inputs.girdi }}"
+        env:
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+      - run: |
+          if [ "${{ inputs.mod }}" = onayla ]; then
+            rm -rf foto-yeni foto-aday foto-pexels; git add -A fotolar fotolar.json ozel.json
+            git commit -m "Kartlar tek planla yeniden çizildi (karartmasız, alt tercihli)"; git pull -q --rebase; git push
+          else
+            cp -r foto-yeni /tmp/foto-yeni
+            git checkout -q --orphan dal-yeni; git rm -rfq .; rm -rf foto-yeni foto-aday foto-pexels ham; cp -r /tmp/foto-yeni foto-yeni
+            git add foto-yeni; git commit -qm foto-yeni; git push -f origin dal-yeni:foto-yeni
+          fi

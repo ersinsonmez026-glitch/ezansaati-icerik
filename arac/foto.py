@@ -149,7 +149,7 @@ def kart(img, metin, kaynak, cikti, arapca='', hat=False, selam=True, odak=0.5, 
     return round(selam_y / H, 4)
 
 
-def _yumusak_yaz(c, satirlar, fs, cikti, selam_y):
+def _yumusak_yaz(c, satirlar, fs, cikti, selam_y, koyu=None):
     """Yazı her kartta tek renk; görsel hiç koyulaştırılmaz. Zemin açıksa bütün yazı koyu (ince açık hale),
     değilse krem (kalın koyu kenar ve gölge)."""
     ust = satirlar[0][0] - int(24 * O); alt = satirlar[-1][0] + int(44 * O)
@@ -168,7 +168,7 @@ def _yumusak_yaz(c, satirlar, fs, cikti, selam_y):
             t = t * t * (3 - 2 * t)   # yumuşak (smoothstep)
             g.putpixel((0, yy), int(255 * guc * t))
         k = Image.new('RGBA', (W, H), (0, 0, 0, 255)); k.putalpha(g.resize((W, H))); c.alpha_composite(k)
-    koyu_yazi = isik > 125   # açık zeminde koyu yazı
+    koyu_yazi = isik > 125 if koyu is None else koyu   # açık zeminde koyu yazı (kartyeni.py okunurluğa göre seçer)
     tl = Image.new('RGBA', (W, H), (0, 0, 0, 0)); dd = ImageDraw.Draw(tl)
     for yy, s, font, renk, rtl in satirlar:
         yon = 'rtl' if rtl else None
