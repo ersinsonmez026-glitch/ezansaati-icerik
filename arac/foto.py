@@ -75,6 +75,18 @@ def sakin_yer(img, yukseklik):
     return en_y
 
 
+def sakin_yer_alt(img, yukseklik):
+    """Alt tercihli: alttaki uygun yerlerden (en sakin yerin en çok 1,4 katı ayrıntılı) en alttakini seçer."""
+    e = img.convert('L').filter(ImageFilter.FIND_EDGES).resize((90, H))
+    px = e.load(); top = [0]
+    for yy in range(H):
+        top.append(top[-1] + sum(px[x, yy] for x in range(90)))
+    adaylar = [(yy, (top[yy + yukseklik] - top[yy]) / yukseklik)
+               for yy in range(int(150 * O), max(int(150 * O), int(H - 170 * O - yukseklik)) + 1, 10)]
+    en = min(v for _, v in adaylar)
+    return max(yy for yy, v in adaylar if v <= en * 1.4)
+
+
 def kart(img, metin, kaynak, cikti, arapca='', hat=False, selam=True, odak=0.5, yer=None, yumusak=False):
     """hat: görüntüde hat yazısı var, Arapça satır konmaz. selam: altta selam yazısına yer bırak. odak: yatay kesim merkezi (0-1).
     yer: yazı bloğunun ortası, yüksekliğe oranla (0-1); verilirse en sakin yer aranmaz (kişinin üstüne gelmesin diye elle).
@@ -90,18 +102,18 @@ def kart(img, metin, kaynak, cikti, arapca='', hat=False, selam=True, odak=0.5, 
     img = Image.merge('RGB', (rr.point(lambda v: min(255, v * 1.04)), gg, bb.point(lambda v: v * 0.95)))
     d = ImageDraw.Draw(Image.new('RGB', (W, H)))
     uzun = len(metin) > MAKS_METIN
-    b = 0.86 if yumusak else 1   # yumuşak kartta yazı biraz küçük: görselin daha azını kaplar
+    b = 0.92 if yumusak else 1   # yumuşak kartta yazı biraz küçük: görselin daha azını kaplar
     f = ImageFont.truetype(f'{KOK}/yazi/Lora-SemiBold.ttf' if yumusak and os.path.exists(f'{KOK}/yazi/Lora-SemiBold.ttf')
                            else f'{KOK}/yazi/Lora-Medium.ttf', int((38 if uzun else 44) * O * b))
-    fs = ImageFont.truetype(f'{KOK}/yazi/Lora-Bold.ttf', int(26 * O * b))
-    fa = ImageFont.truetype(f'{KOK}/yazi/AmiriQuran-Regular.ttf', int(46 * O * b))
+    fs = ImageFont.truetype(f'{KOK}/yazi/Lora-Bold.ttf', int(26 * O))
+    fa = ImageFont.truetype(f'{KOK}/yazi/AmiriQuran-Regular.ttf', int(46 * O * (1.08 if yumusak else 1)))
     tr = sar(d, '“' + metin.strip('“”"') + '”', f, W - 120 * O)
     ar = sar(d, arapca, fa, W - 110 * O, rtl=True) if arapca else []
     if len(ar) > 2: ar = []
     LH, ALH = int((54 if uzun else 62) * O * b), int(96 * O * b)   # Amiri Quran harekeleri uzun: satır arası geniş
     blok = len(ar) * ALH + (int(34 * O) if ar else 0) + len(tr) * LH + int(50 * O)
     yuk = blok + (int((68 + SELAM_H - 50) * O) if selam else 0)
-    y = sakin_yer(img, yuk) if yer is None else int(min(max(H * yer - yuk / 2, 90 * O), H - 170 * O - yuk))
+    y = (sakin_yer_alt(img, yuk) if yumusak else sakin_yer(img, yuk)) if yer is None else int(min(max(H * yer - yuk / 2, 90 * O), H - 170 * O - yuk))
     satirlar = []
     for s in ar: satirlar.append((y, s, fa, ARAPCA, True)); y += ALH
     if ar: y += int(34 * O)
@@ -138,33 +150,44 @@ def kart(img, metin, kaynak, cikti, arapca='', hat=False, selam=True, odak=0.5, 
 
 
 def _yumusak_yaz(c, satirlar, fs, cikti, selam_y):
-    """Yazı her kartta tek renk (krem, kaynak altın). Bant yok: yazı hangi yarıdaysa o kenardan ortaya doğru
-    yumuşakça kaybolan hafif bir geçiş; gücü yazının altındaki zeminin parlaklığına göre (koyu zeminde hiç yok)."""
-    ust = satirlar[0][0] - int(20 * O); alt = satirlar[-1][0] + int(40 * O)
-    isik = ImageStat.Stat(c.convert('L').crop((int(80 * O), max(0, ust), W - int(80 * O), min(H, alt)))).mean[0]
-    guc = min(0.62, max(0.0, (isik - 85) / max(isik, 1)))   # yazının altı ~85 parlaklığa insin
+    """Yazı her kartta tek renk. Bant yok: yazı hangi yarıdaysa o kenardan ortaya doğru yumuşakça kaybolan geçiş;
+    gücü yazının altındaki zeminin parlaklığına göre. Geçişe rağmen zemin çok açıksa bütün yazı koyu renk olur."""
+    ust = satirlar[0][0] - int(24 * O); alt = satirlar[-1][0] + int(44 * O)
+    kutu = (int(70 * O), max(0, ust), W - int(70 * O), min(H, alt))
+    isik = ImageStat.Stat(c.convert('L').crop(kutu)).mean[0]
+    guc = min(0.72, max(0.0, (isik - 70) / max(isik, 1)))   # yazının altı ~70 parlaklığa insin
     if guc > 0.02:
         g = Image.new('L', (1, H))
         yukarida = (ust + alt) / 2 < H / 2
-        kenar = alt + int(170 * O) if yukarida else ust - int(170 * O)   # geçişin kaybolduğu yer
+        kenar = alt + int(200 * O) if yukarida else ust - int(200 * O)   # geçişin kaybolduğu yer
         for yy in range(H):
             if yukarida:
                 t = 1.0 if yy <= alt else max(0.0, 1 - (yy - alt) / max(1, kenar - alt))
-                t = t if yy >= ust else 1.0
             else:
                 t = 1.0 if yy >= ust else max(0.0, 1 - (ust - yy) / max(1, ust - kenar))
             t = t * t * (3 - 2 * t)   # yumuşak (smoothstep)
             g.putpixel((0, yy), int(255 * guc * t))
         k = Image.new('RGBA', (W, H), (0, 0, 0, 255)); k.putalpha(g.resize((W, H))); c.alpha_composite(k)
+    koyu_yazi = ImageStat.Stat(c.convert('L').crop(kutu)).mean[0] > 135   # geçişten sonra hâlâ çok açıksa
     tl = Image.new('RGBA', (W, H), (0, 0, 0, 0)); dd = ImageDraw.Draw(tl)
     for yy, s, font, renk, rtl in satirlar:
         yon = 'rtl' if rtl else None
+        if koyu_yazi:
+            renk = (110, 76, 18) if font is fs else (34, 24, 10)
         x = (W - dd.textlength(s, font=font, direction=yon)) / 2
         dd.text((x, yy), s, font=font, fill=renk, direction=yon,
-                stroke_width=max(1, int(1.0 * O)), stroke_fill=(20, 14, 8))
-    sh = Image.new('RGBA', (W, H), (0, 0, 0, 255))
-    sh.putalpha(tl.split()[3].filter(ImageFilter.GaussianBlur(2)).point(lambda v: int(v * .7)))
-    c.alpha_composite(sh, (0, 2)); c.alpha_composite(tl)
+                stroke_width=max(1, int((0.9 if koyu_yazi else 1.6) * O)),
+                stroke_fill=(255, 246, 228) if koyu_yazi else (16, 11, 6))
+    a = tl.split()[3]
+    if koyu_yazi:
+        h = Image.new('RGBA', (W, H), (255, 248, 236, 255))
+        h.putalpha(a.filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.GaussianBlur(5)).point(lambda v: min(255, int(v * .9))))
+        c.alpha_composite(h)
+    else:
+        sh = Image.new('RGBA', (W, H), (0, 0, 0, 255))
+        sh.putalpha(a.filter(ImageFilter.GaussianBlur(3)).point(lambda v: min(255, int(v * .95))))
+        c.alpha_composite(sh, (0, 3))
+    c.alpha_composite(tl)
     lg = Image.open(f'{KOK}/logo.webp').convert('RGBA'); lg.thumbnail((int(132 * O), int(132 * O)))
     c.alpha_composite(lg, (W - lg.width - int(34 * O), H - int(44 * O) - lg.height))
     c.convert('RGB').save(cikti + '.jpg', quality=86, optimize=True, progressive=True)
