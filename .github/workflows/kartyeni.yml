@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       mod:
-        description: 'hazirla ya da onayla'
+        description: 'hazirla, elle_hazirla, elle_ciz (arac/elle_secim.json) ya da onayla'
         default: 'hazirla'
       girdi:
         description: 'onayla: ayrıca çıkarılacak numaralar'
@@ -30,7 +30,7 @@ jobs:
       - run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
-          if [ "${{ inputs.mod }}" = hazirla ]; then
+          if [ "${{ inputs.mod }}" != onayla ]; then
             for d in foto-aday foto-pexels; do git fetch -q origin $d && git checkout FETCH_HEAD -- $d && git reset -q -- $d; done
           else
             git fetch -q origin foto-yeni && git checkout FETCH_HEAD -- foto-yeni && git reset -q -- foto-yeni
@@ -38,7 +38,15 @@ jobs:
       - run: python3 arac/kartyeni.py "${{ inputs.mod }}" "${{ inputs.girdi }}"
         env:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
-      - run: |
+      # Elle düzenleyici zeminleri depoya girmez: yalnız iş çıktısı olarak (2 gün) saklanır
+      - if: inputs.mod == 'elle_hazirla'
+        uses: actions/upload-artifact@v4
+        with:
+          name: elle
+          path: elle
+          retention-days: 2
+      - if: inputs.mod != 'elle_hazirla'
+        run: |
           if [ "${{ inputs.mod }}" = onayla ]; then
             rm -rf foto-yeni foto-aday foto-pexels; git add -A fotolar fotolar.json ozel.json
             git commit -m "Kartlar tek planla yeniden çizildi (karartmasız, alt tercihli)"; git pull -q --rebase; git push

@@ -149,7 +149,7 @@ def kart(img, metin, kaynak, cikti, arapca='', hat=False, selam=True, odak=0.5, 
     return round(selam_y / H, 4)
 
 
-def _yumusak_yaz(c, satirlar, fs, cikti, selam_y, koyu=None):
+def _yumusak_yaz(c, satirlar, fs, cikti, selam_y, koyu=None, renk=None):
     """Yazı her kartta tek renk; görsel hiç koyulaştırılmaz. Zemin açıksa bütün yazı koyu (ince açık hale),
     değilse krem (kalın koyu kenar ve gölge)."""
     ust = satirlar[0][0] - int(24 * O); alt = satirlar[-1][0] + int(44 * O)
@@ -169,10 +169,15 @@ def _yumusak_yaz(c, satirlar, fs, cikti, selam_y, koyu=None):
             g.putpixel((0, yy), int(255 * guc * t))
         k = Image.new('RGBA', (W, H), (0, 0, 0, 255)); k.putalpha(g.resize((W, H))); c.alpha_composite(k)
     koyu_yazi = isik > 125 if koyu is None else koyu   # açık zeminde koyu yazı (kartyeni.py okunurluğa göre seçer)
+    if renk is not None:   # elle seçilen renk: bütün satırlar bu renkte; kenar rengin açık/koyuluğuna göre
+        koyu_yazi = (0.299 * renk[0] + 0.587 * renk[1] + 0.114 * renk[2]) < 128
+    renk_elle = renk
     tl = Image.new('RGBA', (W, H), (0, 0, 0, 0)); dd = ImageDraw.Draw(tl)
     for yy, s, font, renk, rtl in satirlar:
         yon = 'rtl' if rtl else None
-        if koyu_yazi:
+        if renk_elle is not None:
+            renk = renk_elle
+        elif koyu_yazi:
             renk = (110, 76, 18) if font is fs else (34, 24, 10)
         x = (W - dd.textlength(s, font=font, direction=yon)) / 2
         dd.text((x, yy), s, font=font, fill=renk, direction=yon,

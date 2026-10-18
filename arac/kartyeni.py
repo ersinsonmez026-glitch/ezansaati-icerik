@@ -4,6 +4,8 @@ aranır ve okunur olan ilk (en alttaki) yer seçilir. Her satırın (Arapça, me
 hiçbir yerde okunmayan kart elenir.
 
   python3 arac/kartyeni.py hazirla           -> foto-yeni/NNN.jpg, vitrinN.jpg, liste.json (uygulamaya girmez)
+  python3 arac/kartyeni.py elle_hazirla       -> elle/: yazısız zeminler (540x960) ve satır düzenleri (elle düzenleyici için)
+  python3 arac/kartyeni.py elle_ciz           -> arac/elle_secim.json'daki elle konum/renkle foto-yeni/ (sonra onayla)
   python3 arac/kartyeni.py onayla "12 40"    -> elenmeyenler (ve ek çıkarılacak numaralar hariç) fotolar.json,
                                                 ozel.json ve fotolar/ klasörüne; eski dosyalar silinir"""
 import io, json, os, sys, time, urllib.parse
@@ -93,7 +95,7 @@ def puan(L, E, mk, y, koyu):
     return en
 
 
-def ciz(img, metin, kaynak, arapca, selam, cikti):
+def ciz(img, metin, kaynak, arapca, selam, cikti, elle=None):
     sat, son_y, fs = duzen(metin, kaynak, arapca)
     blok = sat[-1][0] + int(50 * O)
     yuk = blok + (int((68 + SELAM_H - 50) * O) if selam else 0)
@@ -111,11 +113,57 @@ def ciz(img, metin, kaynak, arapca, selam, cikti):
             if enb is None or p < enb[0]: enb = (p, y, koyu)
             if secim is None and p <= IYI: secim = (p, y, koyu)
     p, y, koyu = secim or enb
+    renk = None
+    if elle:   # elle yerleştirme: bloğun üstü (1080x1920 ölçeğinde) ve tek renk (#rrggbb)
+        y, p = int(elle['y']), 0.0
+        renk = tuple(int(elle['renk'][i:i + 2], 16) for i in (1, 3, 5)) if elle.get('renk') else None
     satirlar = [(y + oy, s, font, renk, rtl) for oy, s, font, renk, rtl in sat]
     selam_y = y + son_y + int(68 * O)
-    _yumusak_yaz(img.convert('RGBA'), satirlar, fs, cikti, selam_y, koyu=koyu)
-    return {'puan': round(float(p), 3), 'koyu': koyu, 'yer': round(y / H, 3), 'selam_y': round(selam_y / H, 4),
+    _yumusak_yaz(img.convert('RGBA'), satirlar, fs, cikti, selam_y, koyu=koyu, renk=renk)
+    return {'puan': round(float(p), 3), 'koyu': koyu, 'yer': round(y / H, 3), 'ypx': int(y), 'selam_y': round(selam_y / H, 4),
             'elendi': bool(p > SINIR)}
+
+
+def elle_hazirla():
+    """Elle düzenleyici için: her kartın yazısız zemini (540x960) ve satırları (metin, yazı tipi, boyut, konum)."""
+    os.makedirs('elle', exist_ok=True)
+    liste = []
+    for n, (anahtar, getir, odak, m, selam, hedef, eski) in enumerate(isler(), 1):
+        try:
+            img = ham(anahtar, getir, odak)
+        except Exception as e:
+            print('indirilemedi', anahtar, e); continue
+        r = ciz(img, m['metin'], m['kaynak'], m.get('arapca', ''), selam, f'/tmp/elle_{n:03d}')
+        img.resize((540, 960), Image.LANCZOS).save(f'elle/{n:03d}.jpg', quality=82, optimize=True)
+        sat, son_y, fs = duzen(m['metin'], m['kaynak'], m.get('arapca', ''))
+        tur = lambda font, rtl: 'ar' if rtl else ('k' if font is fs else 'tr')
+        liste.append({'no': n, 'bolum': 'gazze' if eski.get('bolum') == 'gazze' else (eski.get('bolum') or 'genel'),
+                      'selam': selam, 'satir': [{'t': s_, 'f': tur(font, rtl), 'px': font.size, 'y': oy}
+                                                 for oy, s_, font, _, rtl in sat],
+                      'son_y': son_y, 'blok': sat[-1][0] + int(50 * O),
+                      'oto': {'y': r['ypx'], 'koyu': r['koyu'], 'puan': r['puan'], 'elendi': r['puan'] > SINIR}})
+        print(n, r)
+    json.dump({'W': W, 'H': H, 'O': O, 'selam_h': SELAM_H, 'kartlar': liste}, open('elle/kartlar.json', 'w'),
+              ensure_ascii=False, separators=(',', ':'))
+
+
+def elle_ciz():
+    """arac/elle_secim.json ({no: {y, renk, cikar}}) ile bütün kartlar; dokunulmayanlar otomatik plandadır."""
+    secim = json.load(open(f'{KOK}/elle_secim.json'))
+    os.makedirs(CIK, exist_ok=True)
+    liste = []
+    for n, (anahtar, getir, odak, m, selam, hedef, eski) in enumerate(isler(), 1):
+        e = secim.get(str(n))
+        if e and e.get('cikar'): continue
+        try:
+            img = ham(anahtar, getir, odak)
+        except Exception as ex:
+            print('indirilemedi', anahtar, ex); continue
+        r = ciz(img, m['metin'], m['kaynak'], m.get('arapca', ''), selam, f'{CIK}/{n:03d}', elle=e if e and 'y' in e else None)
+        liste.append({'no': n, 'hedef': hedef, 'eski': eski, 'tur': m['tur'], 'metin': m['metin'], 'kaynak': m['kaynak'], **r})
+        print(n, 'elle' if e else 'oto', r)
+    json.dump(liste, open(f'{CIK}/liste.json', 'w'), ensure_ascii=False, indent=1)
+    vitrin(liste)
 
 
 def isler():
@@ -208,4 +256,4 @@ def onayla(cikar):
 
 
 if __name__ == '__main__':
-    {'hazirla': lambda: hazirla(), 'onayla': lambda: onayla(sys.argv[2] if len(sys.argv) > 2 else '')}[sys.argv[1]]()
+    {'hazirla': lambda: hazirla(), 'elle_hazirla': elle_hazirla, 'elle_ciz': elle_ciz, 'onayla': lambda: onayla(sys.argv[2] if len(sys.argv) > 2 else '')}[sys.argv[1]]()
