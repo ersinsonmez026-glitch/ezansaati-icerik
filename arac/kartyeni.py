@@ -134,7 +134,10 @@ def elle_hazirla():
         except Exception as e:
             print('indirilemedi', anahtar, e); continue
         r = ciz(img, m['metin'], m['kaynak'], m.get('arapca', ''), selam, f'/tmp/elle_{n:03d}')
-        img.resize((540, 960), Image.LANCZOS).save(f'elle/{n:03d}.jpg', quality=82, optimize=True)
+        z = img.convert('RGBA')   # logo zemine işlenir (kartta da aynı yerde)
+        lg = Image.open(f'{KOK}/logo.webp').convert('RGBA'); lg.thumbnail((int(132 * O), int(132 * O)))
+        z.alpha_composite(lg, (W - lg.width - int(34 * O), H - int(44 * O) - lg.height))
+        z.convert('RGB').resize((540, 960), Image.LANCZOS).save(f'elle/{n:03d}.jpg', quality=80, optimize=True)
         sat, son_y, fs = duzen(m['metin'], m['kaynak'], m.get('arapca', ''))
         tur = lambda font, rtl: 'ar' if rtl else ('k' if font is fs else 'tr')
         liste.append({'no': n, 'bolum': 'gazze' if eski.get('bolum') == 'gazze' else (eski.get('bolum') or 'genel'),
