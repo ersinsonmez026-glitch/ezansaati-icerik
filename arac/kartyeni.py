@@ -123,6 +123,9 @@ def ciz(img, metin, kaynak, arapca, selam, cikti, elle=None):
     if selam:   # selam yazısı (uygulama ekler) logonun üstüne binmesin: gerekirse blok en az kadar yukarı alınır
         y = min(y, LOGO_UST - 12 - int(SELAM_H * O) - son_y - int(68 * O))
         satirlar = [(y + oy, s_, font, renk_, rtl) for oy, s_, font, renk_, rtl in sat]
+    else:       # selamsız kartta (Mazlumlar) yazının son satırı logonun üstünde biter
+        y = min(y, LOGO_UST - 12 - sat[-1][0] - int(40 * O))
+        satirlar = [(y + oy, s_, font, renk_, rtl) for oy, s_, font, renk_, rtl in sat]
     selam_y = y + son_y + int(68 * O)
     _yumusak_yaz(img.convert('RGBA'), satirlar, fs, cikti, selam_y, koyu=koyu, renk=renk)
     return {'puan': round(float(p), 3), 'koyu': koyu, 'yer': round(y / H, 3), 'ypx': int(y), 'selam_y': round(selam_y / H, 4),
