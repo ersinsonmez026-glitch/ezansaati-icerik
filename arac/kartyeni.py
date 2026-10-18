@@ -114,8 +114,8 @@ def ciz(img, metin, kaynak, arapca, selam, cikti, elle=None):
             if secim is None and p <= IYI: secim = (p, y, koyu)
     p, y, koyu = secim or enb
     renk = None
-    if elle:   # elle yerleştirme: bloğun üstü (1080x1920 ölçeğinde) ve tek renk (#rrggbb)
-        y, p = int(elle['y']), 0.0
+    if elle:   # elle yerleştirme: bloğun üstü (1080x1920 ölçeğinde) ve/veya tek renk (#rrggbb); kişi seçti, elenmez
+        y, p = int(elle.get('y', y)), 0.0
         renk = tuple(int(elle['renk'][i:i + 2], 16) for i in (1, 3, 5)) if elle.get('renk') else None
     satirlar = [(y + oy, s, font, renk, rtl) for oy, s, font, renk, rtl in sat]
     selam_y = y + son_y + int(68 * O)
@@ -162,7 +162,7 @@ def elle_ciz():
             img = ham(anahtar, getir, odak)
         except Exception as ex:
             print('indirilemedi', anahtar, ex); continue
-        r = ciz(img, m['metin'], m['kaynak'], m.get('arapca', ''), selam, f'{CIK}/{n:03d}', elle=e if e and 'y' in e else None)
+        r = ciz(img, m['metin'], m['kaynak'], m.get('arapca', ''), selam, f'{CIK}/{n:03d}', elle=e if e and ('y' in e or 'renk' in e) else None)
         liste.append({'no': n, 'hedef': hedef, 'eski': eski, 'tur': m['tur'], 'metin': m['metin'], 'kaynak': m['kaynak'], **r})
         print(n, 'elle' if e else 'oto', r)
     json.dump(liste, open(f'{CIK}/liste.json', 'w'), ensure_ascii=False, indent=1)
