@@ -4,19 +4,29 @@ name: jsDelivr önbelleğini temizle
 # listedeki tüm dosyalar için temizlenir (ücretsiz purge.jsdelivr.net), sonra her dosya bir kez indirilip önbellek ısıtılır.
 on:
   workflow_dispatch:
+    inputs:
+      dosyalar:
+        description: 'Yalnız bu dosyalar (boşlukla ayrılmış; boşsa hepsi)'
+        required: false
+        default: ''
 
 jobs:
   temizle:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: |
+      - env:
+          DOSYALAR: ${{ inputs.dosyalar }}
+        run: |
           python3 - <<'PY'
           import json, urllib.request, concurrent.futures as cf, collections
           yol = ['videolar.json', 'fotolar.json']
           yol += [x for v in json.load(open('videolar.json')) for x in (v['video'], v['kapak'])]
           yol += [x for f in json.load(open('fotolar.json')) for x in (f['resim'], f['kapak'])]
           yol += ['ozel.json'] + [x for f in json.load(open('ozel.json')) for x in (f['resim'], f['kapak'])]
+          import os
+          if os.environ.get('DOSYALAR', '').strip():
+              yol = os.environ['DOSYALAR'].split()
           def p(y):
               u = f'https://purge.jsdelivr.net/gh/${{ github.repository }}@main/{y}'
               try:
