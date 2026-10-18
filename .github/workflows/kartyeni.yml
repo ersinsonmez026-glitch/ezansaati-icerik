@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       mod:
-        description: 'hazirla, elle_hazirla, elle_ciz (arac/elle_secim.json) ya da onayla'
+        description: 'hazirla, elle_hazirla, dal_sil, elle_ciz (arac/elle_secim.json) ya da onayla'
         default: 'hazirla'
       girdi:
         description: 'onayla: ayrıca çıkarılacak numaralar'
@@ -21,13 +21,19 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
-      - run: pip install -q pillow numpy
-      - uses: actions/cache@v4
+      # Elle düzenleyicinin geçici zemin dalı (elle_hazirla) her başka çalıştırmada silinir
+      - if: inputs.mod != 'elle_hazirla'
+        run: git push origin --delete elle-zemin || true
+      - if: inputs.mod != 'dal_sil'
+        run: pip install -q pillow numpy
+      - if: inputs.mod != 'dal_sil'
+        uses: actions/cache@v4
         with:
           path: ham
           key: ham-${{ github.run_id }}
           restore-keys: ham-
-      - run: |
+      - if: inputs.mod != 'dal_sil'
+        run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
           if [ "${{ inputs.mod }}" != onayla ]; then
@@ -35,7 +41,8 @@ jobs:
           else
             git fetch -q origin foto-yeni && git checkout FETCH_HEAD -- foto-yeni && git reset -q -- foto-yeni
           fi
-      - run: python3 arac/kartyeni.py "${{ inputs.mod }}" "${{ inputs.girdi }}"
+      - if: inputs.mod != 'dal_sil'
+        run: python3 arac/kartyeni.py "${{ inputs.mod }}" "${{ inputs.girdi }}"
         env:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
       - if: inputs.mod == 'elle_hazirla'
@@ -44,7 +51,7 @@ jobs:
           cp -r elle /tmp/elle
           git checkout -q --orphan dal-elle; git rm -rfq .; rm -rf elle foto-aday foto-pexels ham; cp -r /tmp/elle elle
           git add elle; git commit -qm elle-zemin; git push -f origin dal-elle:elle-zemin
-      - if: inputs.mod != 'elle_hazirla'
+      - if: inputs.mod != 'elle_hazirla' && inputs.mod != 'dal_sil'
         run: |
           if [ "${{ inputs.mod }}" = onayla ]; then
             rm -rf foto-yeni foto-aday foto-pexels; git add -A fotolar fotolar.json ozel.json
