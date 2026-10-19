@@ -22,6 +22,11 @@ SECIM = {
     8: 'Şûrâ, 25',                                        # sedirde tesbih çeken yaşlı
 }
 ELLE = {7: {'y': 60}}   # no -> {'y': bloğun üstü (px, 1920 ölçeği), 'renk': '#rrggbb'}
+# Elle ayar sayfasından gelenler (arac/ozel_elle.json, "kandil" bölümü): yer/renk değişir, "cikar" olan kart çıkar
+if os.path.exists(f'{KOK}/ozel_elle.json'):
+    for _no, _a in json.load(open(f'{KOK}/ozel_elle.json')).get('kandil', {}).items():
+        if _a.get('cikar'): SECIM.pop(int(_no), None)
+        else: ELLE[int(_no)] = {**ELLE.get(int(_no), {}), **{k: _a[k] for k in ('y', 'renk') if k in _a}}
 CIK = 'foto-yeni/kandil'
 
 

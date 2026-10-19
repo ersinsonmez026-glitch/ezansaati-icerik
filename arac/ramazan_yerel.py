@@ -25,6 +25,11 @@ SECIM = {
     11: 'Bakara, 152',                                   # pencerede hurma ve su, gün batımı
 }
 ELLE = {2: {'y': 940}, 7: {'y': 130}, 9: {'y': 1330, 'renk': '#2B1A0C'}}   # no -> {'y': bloğun üstü (px, 1920 ölçeği), 'renk': '#rrggbb'}
+# Elle ayar sayfasından gelenler (arac/ozel_elle.json, "ramazan" bölümü): yer/renk değişir, "cikar" olan kart çıkar
+if os.path.exists(f'{KOK}/ozel_elle.json'):
+    for _no, _a in json.load(open(f'{KOK}/ozel_elle.json')).get('ramazan', {}).items():
+        if _a.get('cikar'): SECIM.pop(int(_no), None)
+        else: ELLE[int(_no)] = {**ELLE.get(int(_no), {}), **{k: _a[k] for k in ('y', 'renk') if k in _a}}
 CIK = 'foto-yeni/ramazan'
 
 
